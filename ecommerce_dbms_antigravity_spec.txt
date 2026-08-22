@@ -1,0 +1,859 @@
+================================================================================
+PROJECT SPECIFICATION & ARCHITECTURE BLUEPRINT FOR ANTIGRAVTIY
+================================================================================
+Project Title:        VORTEX Commerce (Variant-based Order & Retail Transactional EXchange)
+Core Domain:          Normalized Enterprise-Grade Relational E-Commerce Database System
+System Architecture:  3-Tier Full-Stack Application (React.js + Node.js/Express + MySQL 8.0)
+Document Version:     1.0.0
+Author / Lead Team:   Database & Full-Stack Engineering Group
+Target Builder:       Antigravity (Autonomous AI Engineering Environment)
+================================================================================
+
+1. EXECUTIVE SUMMARY & PROBLEM STATEMENT
+--------------------------------------------------------------------------------
+1.1 Context & Motivation
+Modern online retail requires managing complex catalog structures, real-time inventory 
+tracking across multi-attribute product variations (such as size, color, storage capacity, 
+and SKU), persistent user shopping states, and uncompromising transactional integrity. 
+Many naive e-commerce database implementations suffer from severe structural anti-patterns:
+  - Flattening product variations into single monolithic records, leading to data 
+    anomalies and redundant catalog bloat.
+  - Failing to snapshot pricing at the exact moment of order placement, causing historical 
+    invoices and financial reports to corrupt whenever current catalog prices fluctuate.
+  - Loose coupling of shopping carts and inventory, leading to race conditions, overselling, 
+    and orphan records.
+  - Lack of strict referential integrity and cascading delete rules, leading to data corruption 
+    when items or users are modified or removed.
+
+1.2 Problem Statement
+Design, normalize (to 3NF/BCNF), and implement an end-to-end 11-table relational DBMS 
+coupled with a responsive React.js frontend and an ACID-compliant Node.js/Express backend. 
+The system must guarantee:
+  1. Strict separation of abstract Products vs. purchasable Product Variants (SKU level).
+  2. Snapshot immutability of pricing and product metadata inside completed Order Items.
+  3. Single active cart per registered user with composite-unique variant mappings.
+  4. ACID-compliant checkout transactions preventing negative inventory and partial commits.
+  5. 1-to-1 payment settlement tracking and verified customer product reviews.
+
+================================================================================
+2. COMPLETE DATABASE SPECIFICATION (11 RELATIONAL TABLES)
+================================================================================
+
+2.1 Entity Relationship Cardinality Overview
+  - USERS (1)            <---> (N) ADDRESSES          [1-to-Many]
+  - CATEGORIES (1)       <---> (N) PRODUCTS           [1-to-Many]
+  - PRODUCTS (1)         <---> (N) PRODUCT_VARIANTS   [1-to-Many]
+  - USERS (1)            <---> (1) CART               [1-to-1 Unique]
+  - CART (1)             <---> (N) CART_ITEMS         [1-to-Many]
+  - PRODUCT_VARIANTS (1) <---> (N) CART_ITEMS         [1-to-Many]
+  - USERS (1)            <---> (N) ORDERS             [1-to-Many]
+  - ADDRESSES (1)        <---> (N) ORDERS             [1-to-Many]
+  - ORDERS (1)           <---> (N) ORDER_ITEMS        [1-to-Many]
+  - PRODUCT_VARIANTS (1) <---> (N) ORDER_ITEMS        [1-to-Many]
+  - ORDERS (1)           <---> (1) PAYMENTS           [1-to-1 Unique]
+  - USERS (1)            <---> (N) REVIEWS            [1-to-Many]
+  - PRODUCTS (1)         <---> (N) REVIEWS            [1-to-Many]
+
+2.2 ASCII Relational Architecture Diagram
++-----------------------------------------------------------------------------------+
+|                                     USERS                                         |
+|                               (PK: user_id)                                       |
++-----------+-----------------------+-------------------------+---------------------+
+            | 1                     | 1                       | 1                   | 1
+            | N                     | 1 (Unique)              | N                   | N
+            v                       v                         v                     v
+     +-------------+          +-----------+             +------------+        +-------------+
+     |  ADDRESSES  |          |   CART    |             |   ORDERS   |        |   REVIEWS   |
+     | (PK: addr_id|          |(PK:cart_id|             |(PK:order_id|        |(PK:rev_id)  |
+     |  FK: user_id|          | FK:user_id|             | FK:user_id |        | FK:user_id  |
+     +------+------+          +-----+-----+             | FK:addr_id |        | FK:prod_id  |
+            |                       |                   +------+-----+        +------+------+
+            | 1                     | 1                        | 1                   ^
+            | N                     | N                        | N                   |
+            | (shipping ref)        v                          v                     | N
+            +----------------> CART_ITEMS                 ORDER_ITEMS                |
+                               (PK: cart_item_id)         (PK: order_item_id)        |
+                               (FK: cart_id)              (FK: order_id)             |
+                               (FK: variant_id)           (FK: variant_id)           |
+                                    |                          |                     |
+                                    | N                        | N                   |
+                                    v                          v                     |
+                              +--------------------------------------+               |
+                              |           PRODUCT_VARIANTS           |               |
+                              |           (PK: variant_id)           |               |
+                              |           (FK: product_id)           |               |
+                              +------------------+-------------------+               |
+                                                 | N                                 |
+                                                 v 1                                 |
+                                          +--------------+                           |
+                                          |   PRODUCTS   +---------------------------+
+                                          | (PK: prod_id)| 1
+                                          | FK: categ_id |
+                                          +-------+------+
+                                                  | N
+                                                  v 1
+                                          +----------------+
+                                          |   CATEGORIES   |
+                                          | (PK: categ_id) |
+                                          +----------------+
+
+     ORDERS (1) -------------------> (1) PAYMENTS
+     (PK: order_id)                      (PK: payment_id, FK: order_id UNIQUE)
++-----------------------------------------------------------------------------------+
+
+2.3 Detailed Table Schema & Integrity Rules
+
+TABLE 1: users
+  - user_id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - full_name        VARCHAR(100) NOT NULL
+  - email            VARCHAR(255) NOT NULL UNIQUE
+  - password_hash    VARCHAR(255) NOT NULL
+  - phone            VARCHAR(20) NULL
+  - role             ENUM('CUSTOMER', 'ADMIN') NOT NULL DEFAULT 'CUSTOMER'
+  - is_active        BOOLEAN NOT NULL DEFAULT TRUE
+  - created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+TABLE 2: categories
+  - category_id      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - name             VARCHAR(100) NOT NULL UNIQUE
+  - slug             VARCHAR(120) NOT NULL UNIQUE
+  - description      TEXT NULL
+  - image_url        VARCHAR(500) NULL
+  - is_active        BOOLEAN NOT NULL DEFAULT TRUE
+  - created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+TABLE 3: addresses
+  - address_id       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - user_id          INT UNSIGNED NOT NULL
+  - full_name        VARCHAR(100) NOT NULL
+  - phone            VARCHAR(20) NOT NULL
+  - address_line1    VARCHAR(255) NOT NULL
+  - address_line2    VARCHAR(255) NULL
+  - city             VARCHAR(100) NOT NULL
+  - state            VARCHAR(100) NOT NULL
+  - pincode          VARCHAR(20) NOT NULL
+  - address_type     ENUM('HOME', 'WORK', 'OTHER') NOT NULL DEFAULT 'HOME'
+  - is_default       BOOLEAN NOT NULL DEFAULT FALSE
+  - created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+
+TABLE 4: products
+  - product_id       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - category_id      INT UNSIGNED NOT NULL
+  - name             VARCHAR(200) NOT NULL
+  - slug             VARCHAR(250) NOT NULL UNIQUE
+  - brand            VARCHAR(100) NOT NULL
+  - description      TEXT NOT NULL
+  - base_price       DECIMAL(10, 2) NOT NULL CHECK (base_price >= 0.00)
+  - is_active        BOOLEAN NOT NULL DEFAULT TRUE
+  - created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  - FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT
+
+TABLE 5: product_variants
+  - variant_id       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - product_id       INT UNSIGNED NOT NULL
+  - sku              VARCHAR(100) NOT NULL UNIQUE
+  - color            VARCHAR(50) NULL
+  - size             VARCHAR(50) NULL
+  - storage          VARCHAR(50) NULL
+  - price            DECIMAL(10, 2) NOT NULL CHECK (price >= 0.00)
+  - stock_quantity   INT NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0)
+  - image_url        VARCHAR(500) NULL
+  - is_active        BOOLEAN NOT NULL DEFAULT TRUE
+  - created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+
+TABLE 6: cart
+  - cart_id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - user_id          INT UNSIGNED NOT NULL UNIQUE
+  - created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  - FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+
+TABLE 7: cart_items
+  - cart_item_id     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - cart_id          INT UNSIGNED NOT NULL
+  - variant_id       INT UNSIGNED NOT NULL
+  - quantity         INT NOT NULL DEFAULT 1 CHECK (quantity > 0)
+  - created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  - UNIQUE KEY uq_cart_variant (cart_id, variant_id)
+  - FOREIGN KEY (cart_id) REFERENCES cart(cart_id) ON DELETE CASCADE
+  - FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id) ON DELETE CASCADE
+
+TABLE 8: orders
+  - order_id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - user_id          INT UNSIGNED NOT NULL
+  - address_id       INT UNSIGNED NOT NULL
+  - order_status     ENUM('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED') NOT NULL DEFAULT 'PENDING'
+  - subtotal_amount  DECIMAL(10, 2) NOT NULL CHECK (subtotal_amount >= 0.00)
+  - tax_amount       DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (tax_amount >= 0.00)
+  - shipping_fee     DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (shipping_fee >= 0.00)
+  - total_amount     DECIMAL(10, 2) NOT NULL CHECK (total_amount >= 0.00)
+  - order_date       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  - FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT
+  - FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE RESTRICT
+
+TABLE 9: order_items
+  - order_item_id    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - order_id         INT UNSIGNED NOT NULL
+  - variant_id       INT UNSIGNED NOT NULL
+  - product_name     VARCHAR(200) NOT NULL          -- Immutable snapshot of product title
+  - variant_details  VARCHAR(255) NOT NULL          -- Immutable snapshot: 'Black / 256GB'
+  - unit_price       DECIMAL(10, 2) NOT NULL CHECK (unit_price >= 0.00) -- Snapshot purchase price
+  - quantity         INT NOT NULL CHECK (quantity > 0)
+  - discount         DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (discount >= 0.00)
+  - total_price      DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0.00)
+  - FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE
+  - FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id) ON DELETE RESTRICT
+
+TABLE 10: payments
+  - payment_id       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - order_id         INT UNSIGNED NOT NULL UNIQUE
+  - payment_method   ENUM('CREDIT_CARD', 'DEBIT_CARD', 'UPI', 'NET_BANKING', 'COD') NOT NULL
+  - amount           DECIMAL(10, 2) NOT NULL CHECK (amount >= 0.00)
+  - payment_status   ENUM('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED') NOT NULL DEFAULT 'PENDING'
+  - transaction_id   VARCHAR(100) NOT NULL UNIQUE
+  - payment_date     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE RESTRICT
+
+TABLE 11: reviews
+  - review_id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  - user_id          INT UNSIGNED NOT NULL
+  - product_id       INT UNSIGNED NOT NULL
+  - rating           TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5)
+  - title            VARCHAR(150) NULL
+  - review_text      TEXT NOT NULL
+  - is_verified      BOOLEAN NOT NULL DEFAULT FALSE
+  - review_date      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  - UNIQUE KEY uq_user_product_review (user_id, product_id)
+  - FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+  - FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+
+2.4 Complete DDL SQL Script
+--------------------------------------------------------------------------------
+CREATE DATABASE IF NOT EXISTS vortex_commerce_db
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE vortex_commerce_db;
+
+-- 1. USERS
+CREATE TABLE users (
+    user_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NULL,
+    role ENUM('CUSTOMER', 'ADMIN') NOT NULL DEFAULT 'CUSTOMER',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_users_email (email)
+) ENGINE=InnoDB;
+
+-- 2. CATEGORIES
+CREATE TABLE categories (
+    category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    slug VARCHAR(120) NOT NULL UNIQUE,
+    description TEXT NULL,
+    image_url VARCHAR(500) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_categories_slug (slug)
+) ENGINE=InnoDB;
+
+-- 3. ADDRESSES
+CREATE TABLE addresses (
+    address_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    address_line1 VARCHAR(255) NOT NULL,
+    address_line2 VARCHAR(255) NULL,
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    pincode VARCHAR(20) NOT NULL,
+    address_type ENUM('HOME', 'WORK', 'OTHER') NOT NULL DEFAULT 'HOME',
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_addresses_user (user_id),
+    CONSTRAINT fk_addresses_user FOREIGN KEY (user_id)
+        REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 4. PRODUCTS
+CREATE TABLE products (
+    product_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    category_id INT UNSIGNED NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    slug VARCHAR(250) NOT NULL UNIQUE,
+    brand VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    base_price DECIMAL(10, 2) NOT NULL CHECK (base_price >= 0.00),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_products_category (category_id),
+    INDEX idx_products_brand (brand),
+    CONSTRAINT fk_products_category FOREIGN KEY (category_id)
+        REFERENCES categories (category_id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 5. PRODUCT_VARIANTS
+CREATE TABLE product_variants (
+    variant_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    product_id INT UNSIGNED NOT NULL,
+    sku VARCHAR(100) NOT NULL UNIQUE,
+    color VARCHAR(50) NULL,
+    size VARCHAR(50) NULL,
+    storage VARCHAR(50) NULL,
+    price DECIMAL(10, 2) NOT NULL CHECK (price >= 0.00),
+    stock_quantity INT NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+    image_url VARCHAR(500) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_variants_product (product_id),
+    INDEX idx_variants_sku (sku),
+    CONSTRAINT fk_variants_product FOREIGN KEY (product_id)
+        REFERENCES products (product_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 6. CART
+CREATE TABLE cart (
+    cart_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_cart_user FOREIGN KEY (user_id)
+        REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 7. CART_ITEMS
+CREATE TABLE cart_items (
+    cart_item_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    cart_id INT UNSIGNED NOT NULL,
+    variant_id INT UNSIGNED NOT NULL,
+    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_cart_variant (cart_id, variant_id),
+    INDEX idx_cart_items_cart (cart_id),
+    INDEX idx_cart_items_variant (variant_id),
+    CONSTRAINT fk_cart_items_cart FOREIGN KEY (cart_id)
+        REFERENCES cart (cart_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_cart_items_variant FOREIGN KEY (variant_id)
+        REFERENCES product_variants (variant_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 8. ORDERS
+CREATE TABLE orders (
+    order_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    address_id INT UNSIGNED NOT NULL,
+    order_status ENUM('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    subtotal_amount DECIMAL(10, 2) NOT NULL CHECK (subtotal_amount >= 0.00),
+    tax_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (tax_amount >= 0.00),
+    shipping_fee DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (shipping_fee >= 0.00),
+    total_amount DECIMAL(10, 2) NOT NULL CHECK (total_amount >= 0.00),
+    order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_orders_user (user_id),
+    INDEX idx_orders_address (address_id),
+    INDEX idx_orders_status (order_status),
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id)
+        REFERENCES users (user_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_orders_address FOREIGN KEY (address_id)
+        REFERENCES addresses (address_id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 9. ORDER_ITEMS
+CREATE TABLE order_items (
+    order_item_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    order_id INT UNSIGNED NOT NULL,
+    variant_id INT UNSIGNED NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    variant_details VARCHAR(255) NOT NULL,
+    unit_price DECIMAL(10, 2) NOT NULL CHECK (unit_price >= 0.00),
+    quantity INT NOT NULL CHECK (quantity > 0),
+    discount DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (discount >= 0.00),
+    total_price DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0.00),
+    INDEX idx_order_items_order (order_id),
+    INDEX idx_order_items_variant (variant_id),
+    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id)
+        REFERENCES orders (order_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_order_items_variant FOREIGN KEY (variant_id)
+        REFERENCES product_variants (variant_id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 10. PAYMENTS
+CREATE TABLE payments (
+    payment_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    order_id INT UNSIGNED NOT NULL UNIQUE,
+    payment_method ENUM('CREDIT_CARD', 'DEBIT_CARD', 'UPI', 'NET_BANKING', 'COD') NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL CHECK (amount >= 0.00),
+    payment_status ENUM('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED') NOT NULL DEFAULT 'PENDING',
+    transaction_id VARCHAR(100) NOT NULL UNIQUE,
+    payment_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_payments_order (order_id),
+    INDEX idx_payments_status (payment_status),
+    CONSTRAINT fk_payments_order FOREIGN KEY (order_id)
+        REFERENCES orders (order_id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- 11. REVIEWS
+CREATE TABLE reviews (
+    review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    product_id INT UNSIGNED NOT NULL,
+    rating TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    title VARCHAR(150) NULL,
+    review_text TEXT NOT NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    review_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_user_product_review (user_id, product_id),
+    INDEX idx_reviews_product (product_id),
+    CONSTRAINT fk_reviews_user FOREIGN KEY (user_id)
+        REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_reviews_product FOREIGN KEY (product_id)
+        REFERENCES products (product_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+2.5 Stored Procedure: Atomic Checkout with ACID Isolation & Row Locking
+--------------------------------------------------------------------------------
+DELIMITER $$
+
+CREATE PROCEDURE sp_execute_checkout(
+    IN in_user_id INT UNSIGNED,
+    IN in_address_id INT UNSIGNED,
+    IN in_payment_method VARCHAR(30),
+    IN in_transaction_id VARCHAR(100),
+    OUT out_order_id INT UNSIGNED,
+    OUT out_status_code VARCHAR(20),
+    OUT out_message VARCHAR(255)
+)
+proc_label: BEGIN
+    DECLARE v_cart_id INT UNSIGNED;
+    DECLARE v_item_count INT DEFAULT 0;
+    DECLARE v_subtotal DECIMAL(10, 2) DEFAULT 0.00;
+    DECLARE v_tax DECIMAL(10, 2) DEFAULT 0.00;
+    DECLARE v_shipping DECIMAL(10, 2) DEFAULT 50.00;
+    DECLARE v_total DECIMAL(10, 2) DEFAULT 0.00;
+    DECLARE v_has_insufficient_stock INT DEFAULT 0;
+
+    -- Error Handler to rollback on any SQL exception
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET out_order_id = 0;
+        SET out_status_code = 'ERR_SQL_EXCEPTION';
+        SET out_message = 'An unexpected SQL error occurred during checkout.';
+    END;
+
+    START TRANSACTION;
+
+    -- 1. Identify User Cart
+    SELECT cart_id INTO v_cart_id 
+    FROM cart 
+    WHERE user_id = in_user_id 
+    FOR UPDATE;
+
+    IF v_cart_id IS NULL THEN
+        ROLLBACK;
+        SET out_order_id = 0;
+        SET out_status_code = 'ERR_CART_EMPTY';
+        SET out_message = 'No active cart found for this user.';
+        LEAVE proc_label;
+    END IF;
+
+    -- 2. Check if Cart has items
+    SELECT COUNT(*) INTO v_item_count 
+    FROM cart_items 
+    WHERE cart_id = v_cart_id;
+
+    IF v_item_count = 0 THEN
+        ROLLBACK;
+        SET out_order_id = 0;
+        SET out_status_code = 'ERR_CART_EMPTY';
+        SET out_message = 'Shopping cart is empty.';
+        LEAVE proc_label;
+    END IF;
+
+    -- 3. Lock Variant Rows & Validate Stock Availability
+    SELECT COUNT(*) INTO v_has_insufficient_stock
+    FROM cart_items ci
+    JOIN product_variants pv ON ci.variant_id = pv.variant_id
+    WHERE ci.cart_id = v_cart_id AND pv.stock_quantity < ci.quantity
+    FOR UPDATE;
+
+    IF v_has_insufficient_stock > 0 THEN
+        ROLLBACK;
+        SET out_order_id = 0;
+        SET out_status_code = 'ERR_STOCK_DEPLETED';
+        SET out_message = 'One or more items in your cart exceeds available inventory.';
+        LEAVE proc_label;
+    END IF;
+
+    -- 4. Calculate Subtotal from Current Variant Pricing
+    SELECT SUM(pv.price * ci.quantity) INTO v_subtotal
+    FROM cart_items ci
+    JOIN product_variants pv ON ci.variant_id = pv.variant_id
+    WHERE ci.cart_id = v_cart_id;
+
+    SET v_tax = ROUND(v_subtotal * 0.18, 2); -- 18% Standard GST
+    IF v_subtotal > 1000.00 THEN
+        SET v_shipping = 0.00;              -- Free shipping above 1000
+    END IF;
+    SET v_total = v_subtotal + v_tax + v_shipping;
+
+    -- 5. Create Order Header
+    INSERT INTO orders (user_id, address_id, order_status, subtotal_amount, tax_amount, shipping_fee, total_amount)
+    VALUES (in_user_id, in_address_id, 'PROCESSING', v_subtotal, v_tax, v_shipping, v_total);
+
+    SET out_order_id = LAST_INSERT_ID();
+
+    -- 6. Insert Order Items (Snapshotting Current Product Title & Price)
+    INSERT INTO order_items (
+        order_id, 
+        variant_id, 
+        product_name, 
+        variant_details, 
+        unit_price, 
+        quantity, 
+        discount, 
+        total_price
+    )
+    SELECT 
+        out_order_id,
+        pv.variant_id,
+        p.name,
+        CONCAT_WS(' / ', pv.color, pv.size, pv.storage),
+        pv.price,
+        ci.quantity,
+        0.00,
+        (pv.price * ci.quantity)
+    FROM cart_items ci
+    JOIN product_variants pv ON ci.variant_id = pv.variant_id
+    JOIN products p ON pv.product_id = p.product_id
+    WHERE ci.cart_id = v_cart_id;
+
+    -- 7. Deduct Inventory
+    UPDATE product_variants pv
+    JOIN cart_items ci ON pv.variant_id = ci.variant_id
+    SET pv.stock_quantity = pv.stock_quantity - ci.quantity
+    WHERE ci.cart_id = v_cart_id;
+
+    -- 8. Create Payment Record
+    INSERT INTO payments (order_id, payment_method, amount, payment_status, transaction_id)
+    VALUES (out_order_id, in_payment_method, v_total, 'SUCCESS', in_transaction_id);
+
+    -- 9. Purge Cart Items
+    DELETE FROM cart_items WHERE cart_id = v_cart_id;
+
+    COMMIT;
+
+    SET out_status_code = 'SUCCESS';
+    SET out_message = 'Order placed and settled successfully.';
+END $$
+
+DELIMITER ;
+
+================================================================================
+3. BACKEND SPECIFICATION (NODE.JS + EXPRESS + TYPESCRIPT + MYSQL2)
+================================================================================
+
+3.1 Technology Stack & Architectural Patterns
+  - Runtime & Language:  Node.js (v20+ LTS), TypeScript 5+
+  - Web Framework:       Express.js 4.x / 5.x
+  - Database Driver:     mysql2/promise with connection pooling (max 20 connections)
+  - Security / Auth:     JSON Web Tokens (jsonwebtoken), Password Hashing (bcryptjs)
+  - Validation:          Zod schema validation middleware
+  - Architecture:        Controller-Service-Repository Pattern with explicit DB Transactions
+
+3.2 Directory Structure
+backend/
+├── src/
+│   ├── config/
+│   │   ├── database.ts        # mysql2 connection pool configuration
+│   │   └── env.ts             # Typed environment variables
+│   ├── middleware/
+│   │   ├── auth.middleware.ts # JWT verification & role validation (Admin/Customer)
+│   │   ├── error.middleware.ts# Global error catching & standardized response
+│   │   └── validate.ts        # Zod request validation wrapper
+│   ├── controllers/
+│   │   ├── auth.controller.ts
+│   │   ├── product.controller.ts
+│   │   ├── cart.controller.ts
+│   │   ├── order.controller.ts
+│   │   └── review.controller.ts
+│   ├── services/
+│   │   ├── auth.service.ts
+│   │   ├── catalog.service.ts
+│   │   ├── checkout.service.ts
+│   │   └── cart.service.ts
+│   ├── routes/
+│   │   ├── auth.routes.ts
+│   │   ├── catalog.routes.ts
+│   │   ├── cart.routes.ts
+│   │   ├── order.routes.ts
+│   │   ├── user.routes.ts
+│   │   └── index.ts
+│   ├── types/
+│   │   └── index.ts           # Schema models, Request definitions, JWT Payload
+│   └── app.ts                 # Express initialization & router binding
+├── package.json
+└── tsconfig.json
+
+3.3 REST API Endpoints Specification
+
+AUTH & USER MANAGEMENT:
+  1. POST /api/auth/register
+     - Payload: { fullName: "Jane Doe", email: "jane@example.com", password: "Password123!", phone: "9876543210" }
+     - Action: Hashes password, creates record in `users`, automatically creates 1:1 `cart` record.
+     - Response (201 Created): { success: true, user: { userId, fullName, email, role }, token: "JWT_STRING" }
+
+  2. POST /api/auth/login
+     - Payload: { email: "jane@example.com", password: "Password123!" }
+     - Action: Validates credentials, generates JWT.
+     - Response (200 OK): { success: true, user: { userId, fullName, email, role }, token: "JWT_STRING" }
+
+  3. GET /api/user/addresses
+     - Headers: Authorization: Bearer <token>
+     - Response (200 OK): [ { addressId, fullName, phone, addressLine1, city, state, pincode, isDefault }, ... ]
+
+  4. POST /api/user/addresses
+     - Payload: { fullName, phone, addressLine1, addressLine2, city, state, pincode, addressType, isDefault }
+     - Response (201 Created): { success: true, addressId: 10 }
+
+CATALOG & PRODUCTS:
+  5. GET /api/categories
+     - Response (200 OK): [ { categoryId, name, slug, description, imageUrl }, ... ]
+
+  6. GET /api/products
+     - Query Params: ?category=electronics&search=laptop&sort=price_asc&page=1&limit=12
+     - Response (200 OK): { total, page, totalPages, data: [ { productId, name, brand, basePrice, categoryName, variantCount, minPrice, maxPrice }, ... ] }
+
+  7. GET /api/products/:slugOrId
+     - Response (200 OK):
+       {
+         productId: 1,
+         name: "UltraBook Pro 15",
+         brand: "TechCorp",
+         description: "High performance workstation laptop.",
+         basePrice: 85000.00,
+         category: { categoryId: 1, name: "Laptops" },
+         variants: [
+           { variantId: 101, sku: "UB-BLK-16-512", color: "Space Gray", size: "15-inch", storage: "512GB SSD", price: 85000.00, stockQuantity: 15, imageUrl: "/img/v1.jpg" },
+           { variantId: 102, sku: "UB-BLK-32-1TB", color: "Space Gray", size: "15-inch", storage: "1TB SSD", price: 98000.00, stockQuantity: 8, imageUrl: "/img/v2.jpg" }
+         ],
+         reviews: {
+           averageRating: 4.8,
+           totalReviews: 24,
+           items: [ { reviewId: 1, userName: "Alex", rating: 5, reviewText: "Super fast!", reviewDate: "2026-08-01" } ]
+         }
+       }
+
+CART OPERATIONS:
+  8. GET /api/cart
+     - Headers: Authorization: Bearer <token>
+     - Response (200 OK):
+       {
+         cartId: 5,
+         itemCount: 2,
+         subtotal: 183000.00,
+         items: [
+           {
+             cartItemId: 12,
+             variantId: 101,
+             productId: 1,
+             productName: "UltraBook Pro 15",
+             sku: "UB-BLK-16-512",
+             variantDetails: "Space Gray / 15-inch / 512GB SSD",
+             unitPrice: 85000.00,
+             quantity: 1,
+             stockAvailable: 15,
+             totalPrice: 85000.00
+           }
+         ]
+       }
+
+  9. POST /api/cart/items
+     - Payload: { variantId: 101, quantity: 1 }
+     - Action: Upserts into `cart_items` using `ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)`.
+     - Response (200 OK): { success: true, message: "Cart updated" }
+
+  10. PUT /api/cart/items/:cartItemId
+      - Payload: { quantity: 3 }
+      - Action: Updates specific cart item quantity after verifying stock.
+
+  11. DELETE /api/cart/items/:cartItemId
+      - Action: Removes item from user cart.
+
+ORDER PROCESSING & CHECKOUT:
+  12. POST /api/checkout
+      - Headers: Authorization: Bearer <token>
+      - Payload: { addressId: 3, paymentMethod: "CREDIT_CARD" }
+      - Action: Invokes stored procedure `sp_execute_checkout` inside database transaction.
+      - Response (201 Created):
+        {
+          success: true,
+          orderId: 1054,
+          transactionId: "TXN_987654321_ABCD",
+          message: "Order placed and settled successfully."
+        }
+
+  13. GET /api/orders
+      - Headers: Authorization: Bearer <token>
+      - Response (200 OK): [ { orderId: 1054, orderDate: "2026-08-22", orderStatus: "PROCESSING", totalAmount: 100350.00, itemCount: 2 }, ... ]
+
+  14. GET /api/orders/:orderId
+      - Response (200 OK): Full order invoice with snapshot details in `order_items`, shipping address, and payment status.
+
+REVIEWS:
+  15. POST /api/products/:productId/reviews
+      - Headers: Authorization: Bearer <token>
+      - Payload: { rating: 5, title: "Great value", reviewText: "Exceeded my expectations!" }
+      - Action: Verifies if user purchased the product to set `is_verified = true`, then inserts review.
+
+================================================================================
+4. FRONTEND SPECIFICATION (REACT.JS + VITE + TAILWIND CSS)
+================================================================================
+
+4.1 Architecture & State Management
+  - Framework / Tooling: React 18/19, Vite (Fast HMR)
+  - Styling System:       Tailwind CSS (Modern sleek UI, Slate/Indigo color palette)
+  - Icons:                Lucide React
+  - Client-side Routing:  React Router DOM v6
+  - State Management:     Zustand (AuthStore, CartStore) + TanStack React Query (Server cache)
+  - HTTP Client:          Axios with automated JWT request interceptor & 401 refresh handler
+
+4.2 React Project Structure
+frontend/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   │   ├── common/
+│   │   │   ├── Navbar.jsx         # Sticky header with Search, Category Links, Cart Badge
+│   │   │   ├── Footer.jsx
+│   │   │   ├── Badge.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   └── Loader.jsx
+│   │   ├── catalog/
+│   │   │   ├── ProductCard.jsx    # Price range, image, quick variant count
+│   │   │   ├── VariantSelector.jsx# Interactive Pill buttons for Color/Size/Storage
+│   │   │   └── ReviewList.jsx
+│   │   ├── cart/
+│   │   │   ├── CartDrawer.jsx     # Slide-over instant cart preview
+│   │   │   └── CartItemRow.jsx
+│   │   └── checkout/
+│   │       ├── AddressSelector.jsx
+│   │       ├── PaymentOptions.jsx
+│   │       └── OrderSummary.jsx
+│   ├── pages/
+│   │   ├── HomePage.jsx           # Hero banner, featured categories, trending products
+│   │   ├── CatalogPage.jsx        # Faceted filter (Categories, Brands, Price Slider)
+│   │   ├── ProductDetailPage.jsx  # Variant dynamic pricing, stock status, Add to Cart
+│   │   ├── CartPage.jsx           # Full itemized cart, quantity modifier, coupon input
+│   │   ├── CheckoutPage.jsx       # Multi-step checkout flow
+│   │   ├── OrderSuccessPage.jsx   # Invoice summary, download receipt
+│   │   ├── MyOrdersPage.jsx       # Historical order list with timeline tracker
+│   │   ├── LoginPage.jsx
+│   │   └── RegisterPage.jsx
+│   ├── store/
+│   │   ├── useAuthStore.js        # User state, JWT storage in localStorage
+│   │   └── useCartStore.js        # Cart items count, instant optimistic updates
+│   ├── services/
+│   │   ├── api.js                 # Axios instance with auth interceptor
+│   │   ├── authService.js
+│   │   ├── productService.js
+│   │   └── orderService.js
+│   ├── App.jsx
+│   └── main.jsx
+├── tailwind.config.js
+├── vite.config.js
+└── package.json
+
+4.3 Key UI/UX Component Specifications
+
+1. Dynamic Variant Selector (ProductDetailPage):
+   - User selects 'Color' (e.g. Space Gray, Silver) -> UI filters available 'Storage' options.
+   - User selects 'Storage' (e.g. 512GB, 1TB) -> Component matches corresponding `variant_id`.
+   - Dynamic Price Header instantly animates to the variant's exact price.
+   - Stock Pill updates: 
+       * If `stock_quantity > 5` -> Green: "In Stock (X available)"
+       * If `1 <= stock_quantity <= 5` -> Amber: "Hurry! Only X left"
+       * If `stock_quantity === 0` -> Red: "Out of Stock" (Disables Add to Cart button).
+
+2. Cart Synchronization & Badge:
+   - Floating Navbar cart badge reflects real-time DB count.
+   - Incrementing/decrementing item quantities uses optimistic UI updates with debounced API calls.
+
+3. Checkout & Payment Simulation:
+   - Step 1: Select shipping address from existing list or add a new address inline.
+   - Step 2: Choose Payment Method (Card, UPI, Net Banking, COD).
+   - Step 3: Click "Confirm & Pay" -> Triggers backend ACID checkout procedure.
+   - Step 4: On success, redirects to `/orders/success/:id` displaying snapshot invoice.
+
+================================================================================
+5. SEED DATA & VERIFICATION TEST SCENARIOS
+================================================================================
+
+5.1 Starter Seed Data
+  - Categories:
+      1. Laptops & Computers
+      2. Smartphones & Tablets
+      3. Audio & Wearables
+  - Products & Variants:
+      1. "ProBook 14X" (Electronics) -> Variants: [Space Gray / 16GB / 512GB ($899)], [Silver / 32GB / 1TB ($1199)]
+      2. "AeroPulse ANC Headphones" (Audio) -> Variants: [Matte Black ($199)], [Ivory White ($199)]
+      3. "Galaxy Pro S26" (Smartphones) -> Variants: [Phantom Black / 128GB ($799)], [Phantom Black / 256GB ($899)]
+  - Users:
+      1. Admin: admin@vortex.com / Pass123!
+      2. Customer: customer@test.com / Pass123!
+
+5.2 Critical DBMS Test Cases for Evaluation / Viva
+  1. Price Update Immunity Test:
+     - Place an order for "ProBook 14X" at $899.
+     - Admin updates the variant price to $999.
+     - Query `order_items` for the historical order: `unit_price` MUST remain $899.
+  2. Overselling / Race Condition Prevention Test:
+     - Set variant stock to 1.
+     - Two concurrent users attempt to checkout the same variant simultaneously.
+     - Exactly ONE checkout succeeds; second user receives `ERR_STOCK_DEPLETED` error.
+  3. Referential Cascades Test:
+     - Delete a test user account -> `cart`, `cart_items`, and `addresses` cascade delete.
+     - Historical `orders` placed by that user remain protected or handled via `ON DELETE RESTRICT`.
+
+================================================================================
+6. ANTIGRAVITY BUILD INSTRUCTIONS & ROADMAP
+================================================================================
+To build this project autonomously, follow this linear sequence:
+
+Phase 1: Database Initialization
+  - Connect to local/remote MySQL instance.
+  - Run the complete DDL script in Section 2.4 to generate all 11 tables with keys and constraints.
+  - Execute Section 2.5 to compile the stored procedure `sp_execute_checkout`.
+  - Populate initial seed data.
+
+Phase 2: Express Backend Setup
+  - Initialize Node.js TypeScript project.
+  - Install dependencies: `express`, `mysql2`, `jsonwebtoken`, `bcryptjs`, `cors`, `dotenv`, `zod`.
+  - Setup MySQL connection pool in `src/config/database.ts`.
+  - Implement Auth, Catalog, Cart, Order, and Review endpoints matching Section 3.3.
+
+Phase 3: React Frontend Development
+  - Initialize Vite React project with Tailwind CSS.
+  - Configure routing: Home, Catalog, Product Detail, Cart, Checkout, Order History, Auth.
+  - Implement dynamic variant selector state logic on the Product Detail page.
+  - Connect Axios instance with JWT authentication flow.
+
+Phase 4: Verification & Integration Testing
+  - Run the test scenarios in Section 5.2.
+  - Verify that cart transitions atomically into order items and stock deducts accurately.
+
+================================================================================
+END OF SPECIFICATION DOCUMENT
+================================================================================

@@ -1,0 +1,199 @@
+================================================================================
+VORTEX COMMERCE (VARIANT-BASED ORDER & RETAIL TRANSACTIONAL EXCHANGE)
+COMPREHENSIVE IMPLEMENTATION PLAN & ARCHITECTURAL SPECIFICATION
+================================================================================
+Author: Lead Systems Architect & Senior Software Engineer
+Target Architecture: 3-Tier Enterprise Full-Stack System
+Implementation Strategy: Frontend-First & Backend Architecture, Database Layer at Final Phase
+Document: implementation.txt
+================================================================================
+
+1. ARCHITECTURAL PHILOSOPHY & SENIOR ENGINEERING PRINCIPLES
+--------------------------------------------------------------------------------
+This project implements enterprise-grade software design patterns to ensure modularity,
+maintainability, high testability, and strict data integrity:
+
+A. SOLID Principles in Backend Architecture:
+   - Single Responsibility Principle (SRP):
+     * Controllers: Parse HTTP requests, validate input format via Zod, return formatted HTTP responses.
+     * Services: Encapsulate core business logic (e.g. stock calculation, pricing logic, checkout orchestration).
+     * Repositories: Isolate data persistence and query logic from business domain.
+     * Middlewares: Handle cross-cutting concerns (JWT authentication, role validation, global error catching).
+   - Open/Closed Principle (OCP) & Liskov Substitution Principle (LSP):
+     * Data Access Layer is abstracted behind TypeScript Interfaces (e.g. IProductRepository, ICartRepository, IOrderRepository).
+     * Storage engines can be swapped (e.g. In-Memory Mock Repository for initial phases -> MySQL2 Pooled Repository for final DB phase) without altering a single line of Service or Controller logic.
+   - Interface Segregation Principle (ISP):
+     * Fine-grained interfaces for domain entities (User, Address, Category, Product, Variant, Cart, CartItem, Order, OrderItem, Payment, Review).
+   - Dependency Inversion Principle (DIP):
+     * Services depend on repository interfaces, injected via dependency injection or factory patterns.
+
+B. Frontend UI/UX Architecture:
+   - Component-Driven Architecture (Modular / Atomic UI):
+     * Atoms/Molecules: Reusable Button, Input, Modal, Badge, Spinner, RatingStars.
+     * Domain Components: ProductCard, Dynamic VariantSelector, CartDrawer, CartItemRow, AddressSelector, PaymentOptions, OrderSummary.
+     * Page Views: Home, Catalog (faceted search/filter), ProductDetail, Cart, Checkout (multi-step), OrderSuccess, MyOrders, Login, Register.
+   - Unidirectional Data Flow & State Management:
+     * Zustand for global client state (AuthStore with JWT persistence, CartStore with real-time optimistic sync).
+     * Axios HTTP Client with automatic Bearer token injection and global error response interception.
+   - Modern Aesthetic & Design System:
+     * Tailwind CSS with a modern slate/indigo/emerald aesthetic, responsive grids, sleek cards, hover transitions, and accessible micro-interactions.
+
+C. Database & Transactional Integrity (Phase 4):
+   - 3NF/BCNF Normalization across 11 relational tables.
+   - Price Snapshot Immutability in Order Items (historical orders immune to catalog price changes).
+   - Row-Level Locking (`FOR UPDATE`) & ACID Transaction isolation to prevent overselling race conditions.
+   - Stored Procedure `sp_execute_checkout` managing atomic multi-table checkout operations.
+
+
+================================================================================
+2. IMPLEMENTATION ROADMAP & STEP-BY-STEP EXECUTION PHASES
+================================================================================
+
+--------------------------------------------------------------------------------
+PHASE 1: FRONTEND APPLICATION DEVELOPMENT (REACT + VITE + TAILWIND CSS)
+--------------------------------------------------------------------------------
+Goal: Build a responsive, high-performance, and feature-complete client application.
+
+Step 1.1: Project Setup & Tooling Configuration
+  - Initialize Vite React project in `frontend/`.
+  - Install dependencies: `react`, `react-dom`, `react-router-dom`, `zustand`, `lucide-react`, `axios`, `clsx`, `tailwind-merge`.
+  - Configure Tailwind CSS (v3/v4), PostCSS, and Vite proxy settings to route `/api` requests to backend port 5000.
+
+Step 1.2: State Management & API Services Layer
+  - `src/services/api.js`: Axios instance with base URL `/api`, authorization headers interceptor, and unified error handling.
+  - `src/store/useAuthStore.js`: Persistent auth state (user info, token, login, register, logout, address management).
+  - `src/store/useCartStore.js`: Persistent/synced cart state (items, subtotal, count, optimistic add/update/remove actions).
+  - API Service modules: `authService.js`, `productService.js`, `cartService.js`, `orderService.js`.
+
+Step 1.3: Core UI Component Library
+  - `Navbar.jsx`: Sticky responsive navbar with category links, real-time search bar, cart item counter badge, user profile menu, and mobile drawer toggle.
+  - `Footer.jsx`: Clean footer with brand info, category links, trust badges, and payment method icons.
+  - `Badge.jsx`, `Modal.jsx`, `Loader.jsx`, `RatingStars.jsx`: Reusable feedback components.
+
+Step 1.4: Catalog & Product Detail Components
+  - `ProductCard.jsx`: Displays thumbnail, brand, product title, category tag, price range or base price, variant options count, and star rating.
+  - `VariantSelector.jsx`: Dynamic matrix selector allowing interactive filtering of Color, Size, and Storage options. Dynamically updates selected variant ID, live price, image, and stock availability badge (In Stock, Low Stock, Out of Stock).
+  - `ReviewList.jsx`: Product review list showing verified purchaser badge, date, rating, and review submission modal.
+
+Step 1.5: Cart & Checkout Components
+  - `CartDrawer.jsx`: Slide-over quick cart drawer with optimistic item deletion and quantity modifiers.
+  - `CartItemRow.jsx`: Individual item row showing snapshot variant details, unit price, quantity increment/decrement, and subtotal.
+  - `AddressSelector.jsx`: Address selection cards with default marker and inline "Add New Address" modal form.
+  - `PaymentOptions.jsx`: Interactive selection for Credit/Debit Card, UPI, Net Banking, and Cash on Delivery (COD) with mock validation.
+  - `OrderSummary.jsx`: Itemized breakdown showing subtotal, 18% GST calculation, shipping fee logic (> $1000 free shipping), and total amount.
+
+Step 1.6: Page Views & Routing
+  - `HomePage.jsx`: Hero banner with CTA, featured categories carousel/grid, trending products, and value propositions.
+  - `CatalogPage.jsx`: Faceted filter sidebar (Categories, Brands, Price Range slider, Search query, Sorting by price/rating).
+  - `ProductDetailPage.jsx`: Full product gallery, interactive variant selector, Add-to-Cart with quantity picker, stock alert, specifications table, and reviews.
+  - `CartPage.jsx`: Full-page cart overview with cost breakdown and checkout CTA.
+  - `CheckoutPage.jsx`: Multi-step checkout wizard (1: Address -> 2: Payment -> 3: Review & Place Order).
+  - `OrderSuccessPage.jsx`: Order confirmation view with order ID, transaction ID, full itemized invoice snapshot, and receipt print/download button.
+  - `MyOrdersPage.jsx`: Historical orders list with order status badges, expandable items, snapshot pricing, and status tracking timeline.
+  - `LoginPage.jsx` & `RegisterPage.jsx`: Clean authenticated onboarding with form validation and demo account shortcuts.
+
+
+--------------------------------------------------------------------------------
+PHASE 2: BACKEND ARCHITECTURE & REST API (NODE.JS + EXPRESS + TYPESCRIPT)
+--------------------------------------------------------------------------------
+Goal: Build a modular, type-safe, ACID-ready REST backend with clean repository abstraction.
+
+Step 2.1: Project Setup & TypeScript Configuration
+  - Initialize Node.js project in `backend/`.
+  - Install dependencies: `express`, `cors`, `dotenv`, `jsonwebtoken`, `bcryptjs`, `zod`, `mysql2`.
+  - Install dev dependencies: `typescript`, `@types/node`, `@types/express`, `@types/cors`, `@types/jsonwebtoken`, `@types/bcryptjs`, `tsx`, `ts-node`.
+  - Setup `tsconfig.json` with strict type checking.
+
+Step 2.2: Domain Models, Contracts & DTOs (`src/types/index.ts`)
+  - Define interfaces for User, Address, Category, Product, ProductVariant, Cart, CartItem, Order, OrderItem, Payment, Review.
+  - Define standard API Response types (`ApiResponse<T>`).
+  - Define Repository Interfaces (`IUserRepository`, `IProductRepository`, `ICartRepository`, `IOrderRepository`, `IReviewRepository`, `IAddressRepository`).
+
+Step 2.3: Repository Layer Abstraction (Repository Pattern)
+  - `src/repositories/memory/`: In-Memory Repository implementation pre-populated with Section 5.1 seed data. Includes row locking simulation, inventory validation, price snapshotting, and cascade delete mechanics to enable immediate frontend verification.
+  - `src/repositories/mysql/`: MySQL implementation utilizing connection pooling, raw SQL queries, and stored procedure execution.
+  - Repository Factory enabling seamless transition to MySQL backend in Phase 4.
+
+Step 2.4: Middlewares & Security
+  - `src/middleware/auth.middleware.ts`: JWT verification middleware extracting `user_id` and `role`. Optional auth middleware for guest/authenticated endpoints.
+  - `src/middleware/validate.ts`: Generic Zod schema validation middleware for request bodies, query params, and route params.
+  - `src/middleware/error.middleware.ts`: Global centralized error handler catching standard operational errors, validation errors, and SQL exceptions.
+
+Step 2.5: Business Services & Controllers
+  - Auth Service & Controller: User registration with auto-cart creation, login, JWT issuance, profile retrieval.
+  - Address Service & Controller: List user addresses, create new address, set default address.
+  - Catalog Service & Controller: List categories, faceted product search/filter/pagination, single product details with full variant hierarchy and aggregated ratings.
+  - Cart Service & Controller: Get user active cart with computed subtotals and variant snapshots, upsert cart item with stock check, update quantity, delete cart item.
+  - Checkout & Order Service & Controller: Atomic checkout execution (stock verification, subtotal/tax/shipping computation, order creation, order_items snapshotting, inventory deduction, payment record creation, cart purge), order listing, order invoice detail retrieval.
+  - Review Service & Controller: Create review with purchase verification (`is_verified` flag), retrieve product reviews.
+
+Step 2.6: API Routes & Express Application Setup
+  - Define clean route files: `auth.routes.ts`, `user.routes.ts`, `catalog.routes.ts`, `cart.routes.ts`, `order.routes.ts`.
+  - Assemble in `src/app.ts` with CORS, JSON body parser, request logger, and error middleware.
+  - Server entry point in `src/server.ts` listening on port 5000.
+
+
+--------------------------------------------------------------------------------
+PHASE 3: FRONTEND & BACKEND INTEGRATION TESTING
+--------------------------------------------------------------------------------
+Goal: Connect React frontend with Express backend and thoroughly test all end-to-end user journeys.
+
+Step 3.1: Complete End-to-End User Journeys Verification
+  - Journey 1: Customer registers / logs in -> Token stored -> Cart initialized.
+  - Journey 2: Browse catalog -> Filter by category/price -> Search query -> View product details.
+  - Journey 3: Select variant (Color/Size/Storage) -> Dynamic price & stock update -> Add to cart.
+  - Journey 4: Open Cart Drawer / Cart Page -> Modify quantities -> Verify subtotal & tax calculation.
+  - Journey 5: Proceed to Checkout -> Select/add address -> Choose payment method -> Execute Checkout -> Receive Order ID & Snapshot Invoice.
+  - Journey 6: View My Orders -> Verify historical price snapshot immutability -> Track order status.
+  - Journey 7: Submit verified product review.
+
+
+--------------------------------------------------------------------------------
+PHASE 4: DATABASE LAYER IMPLEMENTATION (MYSQL 8.0 DDL & STORED PROCEDURES)
+--------------------------------------------------------------------------------
+Goal: Setup the 11-table MySQL 8.0 schema, indexes, constraints, stored procedures, seed data, and connect MySQL pool.
+
+Step 4.1: Database Schema & Migration Script
+  - Create database `vortex_commerce_db` with `utf8mb4_unicode_ci`.
+  - Execute DDL creating all 11 tables with proper Foreign Keys and ON DELETE actions:
+    1. `users`
+    2. `categories`
+    3. `addresses` (FK users ON DELETE CASCADE)
+    4. `products` (FK categories ON DELETE RESTRICT)
+    5. `product_variants` (FK products ON DELETE CASCADE)
+    6. `cart` (FK users ON DELETE CASCADE, user_id UNIQUE)
+    7. `cart_items` (FK cart ON DELETE CASCADE, FK product_variants ON DELETE CASCADE, UNIQUE cart_id+variant_id)
+    8. `orders` (FK users ON DELETE RESTRICT, FK addresses ON DELETE RESTRICT)
+    9. `order_items` (FK orders ON DELETE CASCADE, FK product_variants ON DELETE RESTRICT)
+    10. `payments` (FK orders ON DELETE RESTRICT, order_id UNIQUE)
+    11. `reviews` (FK users ON DELETE CASCADE, FK products ON DELETE CASCADE, UNIQUE user_id+product_id)
+
+Step 4.2: Stored Procedure Compilation
+  - Compile `sp_execute_checkout` with `START TRANSACTION`, `SELECT ... FOR UPDATE` row locks, stock validation, price snapshotting into `order_items`, inventory reduction, payment creation, cart purging, and `COMMIT`/`ROLLBACK` error handling.
+
+Step 4.3: Seed Data Population
+  - Insert initial categories, multi-variant products, starter admin and customer accounts.
+
+Step 4.4: Switch Backend to MySQL Connection Pool
+  - Configure `src/config/database.ts` with connection pooling.
+  - Activate MySQL repositories in the Backend Repository Factory.
+
+
+--------------------------------------------------------------------------------
+PHASE 5: FINAL VERIFICATION & DBMS CRITICAL TEST SCENARIOS
+--------------------------------------------------------------------------------
+Goal: Execute critical evaluation test cases to ensure absolute integrity.
+
+Step 5.1: Price Update Immunity Test
+  - Place order for product variant at initial price.
+  - Update variant price in catalog.
+  - Verify `order_items` snapshot remains immutable.
+
+Step 5.2: Overselling & Concurrency Race Condition Test
+  - Set variant stock to 1.
+  - Execute concurrent checkouts and verify that exactly one succeeds while second receives `ERR_STOCK_DEPLETED`.
+
+Step 5.3: Referential Cascade Integrity Test
+  - Delete test user -> verify cascade deletion of cart, cart_items, addresses.
+  - Verify historical orders remain preserved or properly restricted.
+================================================================================
