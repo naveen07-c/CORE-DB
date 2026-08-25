@@ -14,6 +14,10 @@ export const pool = mysql.createPool({
   decimalNumbers: true,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
+  ssl: {
+        rejectUnauthorized: false
+      }
+
 });
 
 export const testDbConnection = async (): Promise<boolean> => {
