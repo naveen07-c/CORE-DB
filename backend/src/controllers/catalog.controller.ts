@@ -18,7 +18,7 @@ export class CatalogController {
     try {
       const { category, search, brand, maxPrice, sort, page, limit } = req.query;
       const result = await catalogService.getProducts({
-        categorySlug: category ? String(category) : undefined,
+        categoryId: category ? parseInt(String(category), 10) : undefined,
         search: search ? String(search) : undefined,
         brand: brand ? String(brand) : undefined,
         maxPrice: maxPrice ? parseFloat(String(maxPrice)) : undefined,
@@ -35,10 +35,10 @@ export class CatalogController {
     }
   }
 
-  async getProductBySlugOrId(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getProductById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const slugOrId = String(req.params.slugOrId);
-      const product = await catalogService.getProductBySlugOrId(slugOrId);
+      const productId = parseInt(String(req.params.productId), 10);
+      const product = await catalogService.getProductById(productId);
       res.status(200).json({
         success: true,
         data: product,

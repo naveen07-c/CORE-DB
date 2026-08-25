@@ -9,8 +9,8 @@ export const productService = {
     return await api.get('/products', { params });
   },
 
-  getProductBySlugOrId: async (slugOrId) => {
-    return await api.get(`/products/${slugOrId}`);
+  getProductById: async (productId) => {
+    return await api.get(`/products/${productId}`);
   },
 
   addReview: async (productId, reviewData) => {

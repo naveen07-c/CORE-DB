@@ -41,19 +41,6 @@ export class UserController {
       next(err);
     }
   }
-
-  async setDefaultAddress(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const addressId = parseInt(String(req.params.addressId), 10);
-      await addressService.setDefaultAddress(req.user!.userId, addressId);
-      res.status(200).json({
-        success: true,
-        message: 'Default address updated.',
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
 }
 
 export const userController = new UserController();

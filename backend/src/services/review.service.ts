@@ -5,17 +5,13 @@ export class ReviewService {
   async addReview(
     userId: number,
     productId: number,
-    data: { rating: number; title?: string; reviewText: string }
+    data: { rating: number; reviewText: string }
   ): Promise<Review> {
-    const isVerified = await reviewRepository.hasUserPurchasedProduct(userId, productId);
-
     return reviewRepository.createReview({
       userId,
       productId,
       rating: data.rating,
-      title: data.title || null,
       reviewText: data.reviewText,
-      isVerified,
     });
   }
 

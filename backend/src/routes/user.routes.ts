@@ -14,8 +14,7 @@ const addressSchema = z.object({
   city: z.string().min(2, 'City is required').max(100),
   state: z.string().min(2, 'State is required').max(100),
   pincode: z.string().min(3, 'Pincode is required').max(20),
-  addressType: z.enum(['HOME', 'WORK', 'OTHER']).optional(),
-  isDefault: z.boolean().optional(),
+  addressType: z.enum(['HOME', 'OFFICE', 'OTHER']).optional(),
 });
 
 router.use(requireAuth);
@@ -23,6 +22,5 @@ router.use(requireAuth);
 router.get('/addresses', (req, res, next) => userController.getAddresses(req, res, next));
 router.post('/addresses', validateBody(addressSchema), (req, res, next) => userController.createAddress(req, res, next));
 router.delete('/addresses/:addressId', (req, res, next) => userController.deleteAddress(req, res, next));
-router.patch('/addresses/:addressId/default', (req, res, next) => userController.setDefaultAddress(req, res, next));
 
 export default router;

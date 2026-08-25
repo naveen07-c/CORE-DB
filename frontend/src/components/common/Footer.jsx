@@ -1,170 +1,102 @@
-import React from 'react';
-import { ShieldCheck, Truck, RotateCcw, Award, Mail, ArrowRight } from 'lucide-react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
+import { Instagram, Twitter, Youtube, Github } from 'lucide-react';
+
+const COLUMNS = [
+  {
+    heading: 'Shop',
+    links: [
+      { label: 'All Products', to: '/catalog' },
+      { label: 'Electronics', to: '/catalog?category=1' },
+      { label: 'Shoes', to: '/catalog?category=2' },
+      { label: 'Books', to: '/catalog?category=3' },
+      { label: 'Accessories', to: '/catalog?category=4' },
+    ],
+  },
+  {
+    heading: 'Account',
+    links: [
+      { label: 'Sign In', to: '/login' },
+      { label: 'Create Account', to: '/register' },
+      { label: 'My Orders', to: '/my-orders' },
+      { label: 'Wishlist', to: '/wishlist' },
+      { label: 'Cart', to: '/cart' },
+    ],
+  },
+  {
+    heading: 'Company',
+    links: [
+      { label: 'About Iron & Ivy', to: '/catalog' },
+      { label: 'Careers', to: '/catalog' },
+      { label: 'Sustainability', to: '/catalog' },
+      { label: 'Press', to: '/catalog' },
+    ],
+  },
+];
 
 export const Footer = () => {
   return (
-    <footer className="bg-slate-950 text-slate-300 border-t border-slate-800/80 mt-20">
-      
-      {/* 1. Hardware Guarantees Banner */}
-      <div className="border-b border-slate-800/80 py-8 bg-slate-950">
-        <div className="max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-white flex-shrink-0">
-                <Truck className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Free Express Delivery</h4>
-                <p className="text-xs text-slate-400">Insured courier on orders &gt; $1,000</p>
-              </div>
-            </div>
+    <footer className="mt-auto relative overflow-hidden bg-white border-t-2 border-ink/10">
+      {/* floating deco shapes */}
+      <div className="pointer-events-none absolute -top-16 right-[12%] w-40 h-40 bg-lemon-300/50 rounded-full blur-2xl" />
+      <div className="pointer-events-none absolute bottom-0 left-[6%] w-52 h-52 bg-mint-200/60 rounded-full blur-2xl" />
+      <div className="pointer-events-none absolute top-10 left-[40%] w-24 h-24 bg-brand-200/60 rounded-full blur-xl animate-blob" />
 
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-white flex-shrink-0">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">2-Year Full Warranty</h4>
-                <p className="text-xs text-slate-400">Comprehensive parts & labor coverage</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-white flex-shrink-0">
-                <RotateCcw className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">30-Day Money Back</h4>
-                <p className="text-xs text-slate-400">Prepaid return shipping labels</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-white flex-shrink-0">
-                <Award className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Certified Factory Sealed</h4>
-                <p className="text-xs text-slate-400">Serialized quality assurance</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main Footer Navigation Links */}
-      <div className="max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-10 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
-          
-          {/* Col 1 & 2: Brand Story & Mission */}
-          <div className="lg:col-span-2 space-y-4 pr-0 lg:pr-8">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-white text-slate-950 flex items-center justify-center font-black text-base shadow-sm">
-                V
-              </div>
-              <span className="text-xl font-black text-white tracking-tight">VORTEX HARDWARE</span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              We design and curate premium developer ultrabooks, audiophile reference monitors, and precision hardware tools crafted for engineers, designers, and creators worldwide.
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-10">
+          {/* Brand */}
+          <div className="col-span-2 max-w-xs">
+            <Link to="/" className="font-display font-bold text-3xl tracking-tight text-ink">
+              Iron <span className="text-gradient">&amp;</span> Ivy
+            </Link>
+            <p className="text-sm leading-relaxed mt-4 text-ink/50 font-medium">
+              A fizzy little universe of tech, footwear, books and everyday essentials —
+              built as a full-stack DBMS mini-project.
             </p>
-            <div className="pt-2 flex items-center gap-2 text-xs text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              <span>Direct-to-Consumer Flagship Hardware</span>
+            <div className="flex items-center gap-2.5 mt-6">
+              {[Twitter, Instagram, Youtube, Github].map((Icon, i) => (
+                <a
+                  key={i}
+                  href="#"
+                  onClick={(e) => e.preventDefault()}
+                  aria-label="Social link"
+                  className="p-2.5 rounded-full border-2 border-ink/10 text-ink/50 hover:text-white hover:bg-brand-500 hover:border-brand-500 hover:-translate-y-1 transition-all duration-300"
+                >
+                  <Icon className="w-4 h-4" />
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Col 3: Shop Hardware */}
-          <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 font-mono">Collections</h4>
-            <ul className="space-y-2.5 text-xs text-slate-400">
-              <li>
-                <Link to="/catalog?category=laptops-computers" className="hover:text-white transition-colors">
-                  Laptops & Workstations
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog?category=smartphones-tablets" className="hover:text-white transition-colors">
-                  Smartphones & Displays
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog?category=audio-wearables" className="hover:text-white transition-colors">
-                  Studio Audio & ANC
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog" className="hover:text-white transition-colors">
-                  Browse All Hardware
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Col 4: Customer Care */}
-          <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 font-mono">Customer Care</h4>
-            <ul className="space-y-2.5 text-xs text-slate-400">
-              <li>
-                <Link to="/my-orders" className="hover:text-white transition-colors">
-                  Track Your Orders
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog" className="hover:text-white transition-colors">
-                  Shipping & Dispatch Policy
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog" className="hover:text-white transition-colors">
-                  2-Year Warranty Coverage
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog" className="hover:text-white transition-colors">
-                  Returns & Refunds Center
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Col 5: Account & Support */}
-          <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 font-mono">My Account</h4>
-            <ul className="space-y-2.5 text-xs text-slate-400">
-              <li>
-                <Link to="/login" className="hover:text-white transition-colors">
-                  Sign In to Account
-                </Link>
-              </li>
-              <li>
-                <Link to="/register" className="hover:text-white transition-colors">
-                  Create an Account
-                </Link>
-              </li>
-              <li>
-                <Link to="/cart" className="hover:text-white transition-colors">
-                  View Shopping Bag
-                </Link>
-              </li>
-              <li>
-                <Link to="/my-orders" className="hover:text-white transition-colors">
-                  Purchase Receipts
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {COLUMNS.map((col) => (
+            <div key={col.heading}>
+              <h4 className="font-display font-bold text-sm uppercase tracking-[0.25em] text-ink mb-4">{col.heading}</h4>
+              <ul className="space-y-2.5">
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-ink/50 hover:text-brand-600 hover:pl-1.5 transition-all duration-300 font-medium"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        {/* 3. Bottom Bar & Legal */}
-        <div className="border-t border-slate-800/80 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© 2026 VORTEX Hardware Labs Inc. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-xs text-slate-400">
-            <span>Privacy Policy</span>
-            <span>•</span>
-            <span>Terms of Sale</span>
-            <span>•</span>
-            <span>Hardware Warranty Terms</span>
+        <div className="select-none pointer-events-none font-display font-bold text-[18vw] md:text-[9rem] leading-none text-brand-500/[0.06] text-center -mb-6 md:-mb-12 mt-8">
+          Iron & Ivy
+        </div>
+
+        <div className="border-t-2 border-dashed border-ink/10 pt-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-ink/40 font-medium">
+          <p>© 2025 Iron & Ivy — DBMS mini-project storefront.</p>
+          <div className="flex items-center gap-5">
+            <span className="hover:text-brand-600 cursor-pointer transition-colors">Privacy</span>
+            <span className="hover:text-brand-600 cursor-pointer transition-colors">Terms</span>
+            <span className="hover:text-brand-600 cursor-pointer transition-colors">Cookies</span>
           </div>
         </div>
       </div>

@@ -15,24 +15,11 @@ export class MemoryAddressRepository implements IAddressRepository {
   }
 
   async create(addressData: Omit<Address, 'addressId' | 'createdAt'>): Promise<Address> {
-    // If setting as default, clear default for other addresses of this user
-    if (addressData.isDefault) {
-      memoryStorage.addresses.forEach((a) => {
-        if (a.userId === addressData.userId) a.isDefault = false;
-      });
-    }
-
     const newAddress: Address = {
       addressId: memoryStorage.getNextAddressId(),
       ...addressData,
       createdAt: new Date(),
     };
-
-    // If first address, automatically make default
-    const existingCount = memoryStorage.addresses.filter((a) => a.userId === addressData.userId).length;
-    if (existingCount === 0) {
-      newAddress.isDefault = true;
-    }
 
     memoryStorage.addresses.push(newAddress);
     return { ...newAddress };
@@ -53,15 +40,7 @@ export class MemoryAddressRepository implements IAddressRepository {
   }
 
   async setDefault(addressId: number, userId: number): Promise<boolean> {
-    const target = memoryStorage.addresses.find((a) => a.addressId === addressId && a.userId === userId);
-    if (!target) return false;
-
-    memoryStorage.addresses.forEach((a) => {
-      if (a.userId === userId) {
-        a.isDefault = a.addressId === addressId;
-      }
-    });
-
-    return true;
+    // Not applicable in new schema - no isDefault field
+    return false;
   }
 }

@@ -9,22 +9,12 @@ export class MemoryCatalogRepository implements ICatalogRepository {
       .map((c) => ({ ...c }));
   }
 
-  async getCategoryBySlug(slug: string): Promise<Category | null> {
-    const cat = memoryStorage.categories.find((c) => c.slug === slug && c.isActive);
-    return cat ? { ...cat } : null;
-  }
-
   async getProducts(filters: ProductFilterParams): Promise<{ total: number; page: number; totalPages: number; data: any[] }> {
     let filtered = memoryStorage.products.filter((p) => p.isActive);
 
     // 1. Filter by category
-    if (filters.categorySlug) {
-      const category = memoryStorage.categories.find((c) => c.slug === filters.categorySlug);
-      if (category) {
-        filtered = filtered.filter((p) => p.categoryId === category.categoryId);
-      } else {
-        return { total: 0, page: 1, totalPages: 0, data: [] };
-      }
+    if (filters.categoryId) {
+      filtered = filtered.filter((p) => p.categoryId === filters.categoryId);
     }
 
     // 2. Filter by search (name, brand, description, sku)
@@ -32,8 +22,8 @@ export class MemoryCatalogRepository implements ICatalogRepository {
       const q = filters.search.toLowerCase();
       filtered = filtered.filter((p) => {
         const nameMatch = p.name.toLowerCase().includes(q);
-        const brandMatch = p.brand.toLowerCase().includes(q);
-        const descMatch = p.description.toLowerCase().includes(q);
+        const brandMatch = p.brand?.toLowerCase().includes(q);
+        const descMatch = p.description?.toLowerCase().includes(q);
         const skuMatch = memoryStorage.productVariants.some(
           (v) => v.productId === p.productId && v.sku.toLowerCase().includes(q)
         );
@@ -43,7 +33,7 @@ export class MemoryCatalogRepository implements ICatalogRepository {
 
     // 3. Filter by brand
     if (filters.brand) {
-      filtered = filtered.filter((p) => p.brand.toLowerCase() === filters.brand?.toLowerCase());
+      filtered = filtered.filter((p) => p.brand?.toLowerCase() === filters.brand?.toLowerCase());
     }
 
     // 4. Max Price filter (using min variant price or base price)
@@ -69,7 +59,6 @@ export class MemoryCatalogRepository implements ICatalogRepository {
       return {
         productId: p.productId,
         name: p.name,
-        slug: p.slug,
         brand: p.brand,
         description: p.description,
         basePrice: p.basePrice,
@@ -78,7 +67,6 @@ export class MemoryCatalogRepository implements ICatalogRepository {
         variantCount: variants.length,
         minPrice,
         maxPrice,
-        imageUrl: variants[0]?.imageUrl || null,
         rating: avgRating,
         totalReviews: reviews.length,
       };
@@ -107,9 +95,9 @@ export class MemoryCatalogRepository implements ICatalogRepository {
     };
   }
 
-  async getProductBySlugOrId(slugOrId: string | number): Promise<ProductDetailResponse | null> {
+  async getProductById(productId: number): Promise<ProductDetailResponse | null> {
     const product = memoryStorage.products.find(
-      (p) => p.isActive && (p.slug === slugOrId || p.productId === Number(slugOrId))
+      (p) => p.isActive && p.productId === productId
     );
     if (!product) return null;
 
@@ -135,7 +123,6 @@ export class MemoryCatalogRepository implements ICatalogRepository {
       category: {
         categoryId: category?.categoryId || product.categoryId,
         name: category?.name || 'Electronics',
-        slug: category?.slug,
       },
       variants,
       reviews: {

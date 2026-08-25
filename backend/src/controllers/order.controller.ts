@@ -39,7 +39,7 @@ export class OrderController {
       const orderId = parseInt(String(req.params.orderId), 10);
       const order = await checkoutService.getOrderById(
         orderId,
-        req.user?.role === 'ADMIN' ? undefined : req.user!.userId
+        req.user!.userId
       );
       res.status(200).json({
         success: true,

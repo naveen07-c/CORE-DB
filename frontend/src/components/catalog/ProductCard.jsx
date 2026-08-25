@@ -1,114 +1,134 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { RatingStars } from '../common/RatingStars';
-import { Badge } from '../common/Badge';
-import { Layers, ArrowRight } from 'lucide-react';
+import { Heart, Plus } from 'lucide-react';
+import { getProductImage, FALLBACK_IMAGE } from '../../utils/productImages';
+import { SmartImage } from '../common/SmartImage';
+import { useWishlistStore } from '../../store/useWishlistStore';
+
+const formatPrice = (amount) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount || 0);
+
+/* Rotating pastel backdrops so the grid feels playful, not sterile */
+const PASTELS = ['bg-peach', 'bg-mint-100', 'bg-sky-200', 'bg-lemon-300/50'];
 
 export const ProductCard = ({ product }) => {
-  // Format price
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2,
-    }).format(amount || 0);
+  const { toggleWishlist, isInWishlist } = useWishlistStore();
+  const inWishlist = isInWishlist(product.productId);
+
+  const minPrice = product.minPrice ?? product.basePrice ?? 0;
+  const maxPrice = product.maxPrice ?? product.basePrice ?? 0;
+  const rating = product.rating ?? product.averageRating ?? 0;
+  const totalReviews = product.totalReviews ?? product.reviewCount ?? 0;
+
+  const hasDiscount = maxPrice > minPrice;
+  const discountPercent = hasDiscount ? Math.round(((maxPrice - minPrice) / maxPrice) * 100) : 0;
+  const pastel = PASTELS[product.productId % PASTELS.length];
+
+  const handleWishlistToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(product);
   };
 
-  const minPrice = product.minPrice ?? product.min_price ?? product.basePrice ?? product.base_price;
-  const maxPrice = product.maxPrice ?? product.max_price ?? product.basePrice ?? product.base_price;
-  const variantCount = product.variantCount ?? product.variant_count ?? product.variants?.length ?? 1;
-  const rating = product.rating ?? product.averageRating ?? product.average_rating ?? 4.8;
-  const totalReviews = product.reviewCount ?? product.totalReviews ?? product.total_reviews ?? 12;
-
-  // Placeholder images for tech products
-  const defaultImage = product.imageUrl || product.image_url || product.variants?.[0]?.imageUrl || product.variants?.[0]?.image_url || 
-    'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80';
-
-  const productSlug = product.slug || product.productId || product.product_id;
-
   return (
-    <div className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col overflow-hidden">
-      {/* Product Image Container */}
+    <div className="group relative bg-white rounded-[2rem] p-3.5 shadow-card hover:shadow-lift hover:-translate-y-2 hover:-rotate-1 transition-all duration-500 flex flex-col h-full">
+      {/* Image tile */}
       <Link
-        to={`/product/${productSlug}`}
-        className="relative aspect-[4/3] bg-slate-50 dark:bg-slate-950/60 overflow-hidden flex items-center justify-center p-6 border-b border-slate-100 dark:border-slate-800"
+        to={`/product/${product.productId}`}
+        className={`relative block h-52 sm:h-56 rounded-[1.4rem] overflow-hidden ${pastel}`}
+        style={{ textDecoration: 'none' }}
       >
-        <img
-          src={defaultImage}
+        <SmartImage
+          src={getProductImage(product.productId)}
+          fallback={FALLBACK_IMAGE}
           alt={product.name}
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          onError={(e) => {
-            e.currentTarget.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80';
-          }}
+          className="w-full h-full object-contain p-5 drop-shadow-md group-hover:scale-110 group-hover:-rotate-2 transition-transform duration-500 ease-out"
         />
-
-        {/* Brand Tag */}
-        <div className="absolute top-3 left-3">
-          <Badge variant="primary" size="sm" className="bg-white/90 dark:bg-slate-800/90 shadow-sm text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 backdrop-blur-sm">
-            {product.brand}
-          </Badge>
-        </div>
-
-        {/* Variant Count Tag */}
-        <div className="absolute bottom-3 right-3">
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold bg-slate-950/90 dark:bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md shadow-sm border border-slate-800 dark:border-slate-700 backdrop-blur-sm">
-            <Layers className="w-3 h-3 text-emerald-400" />
-            {variantCount} {variantCount === 1 ? 'Variant' : 'Variants'}
+        {/* sticker discount chip */}
+        {discountPercent > 0 && (
+          <span className="absolute -top-1 -left-1 px-3 py-1.5 rounded-2xl rounded-tl-[1.4rem] text-[11px] font-extrabold text-ink bg-lemon-400 shadow-md rotate-[-4deg]">
+            −{discountPercent}%
           </span>
-        </div>
+        )}
+        {(product.variantCount ?? 0) > 1 && (
+          <span className="absolute bottom-3 left-3 chip !py-1 !px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            {(product.variantCount)} variants
+          </span>
+        )}
       </Link>
 
-      {/* Product Details */}
-      <div className="p-5 flex-1 flex flex-col">
-        {/* Category */}
-        <p className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-          {product.categoryName || product.category_name || product.category?.name || 'Hardware'}
+      {/* wishlist */}
+      <button
+        onClick={handleWishlistToggle}
+        aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+        className={`absolute top-6 right-6 z-10 p-2 rounded-full bg-white border-2 border-ink/10 shadow-sm transition-all duration-300 ${
+          inWishlist
+            ? 'text-brand-600 scale-110 border-brand-300'
+            : 'text-ink/30 hover:text-brand-600 hover:scale-110'
+        }`}
+      >
+        <Heart className={`w-4 h-4 ${inWishlist ? 'fill-current' : ''}`} />
+      </button>
+
+      {/* Body */}
+      <div className="flex flex-col flex-1 px-2 pt-4 pb-1">
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-brand-600">
+          {product.brand || product.categoryName || 'Iron & Ivy'}
         </p>
 
-        {/* Name */}
         <Link
-          to={`/product/${productSlug}`}
-          className="font-bold text-slate-900 dark:text-white text-base line-clamp-1 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mb-1.5"
+          to={`/product/${product.productId}`}
+          style={{ textDecoration: 'none', color: 'inherit' }}
         >
-          {product.name}
+          <h3 className="mt-1.5 font-display font-semibold text-[15px] text-ink line-clamp-2 leading-snug min-h-[2.6rem] group-hover:text-brand-600 transition-colors">
+            {product.name}
+          </h3>
         </Link>
 
-        {/* Description snippet */}
-        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
-          {product.description}
-        </p>
-
-        {/* Rating */}
-        <div className="mb-4">
+        <div className="mt-2">
           <RatingStars rating={rating} totalReviews={totalReviews} size="sm" />
         </div>
 
-        {/* Price & Action */}
-        <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] uppercase font-semibold text-slate-400 dark:text-slate-500 block">Starting from</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-black text-slate-900 dark:text-white font-mono">
-                {formatPrice(minPrice)}
-              </span>
-              {maxPrice > minPrice && (
-                <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
-                  - {formatPrice(maxPrice)}
-                </span>
-              )}
-            </div>
+        <div className="mt-auto flex items-end justify-between pt-3.5 gap-2">
+          <div className="flex flex-col">
+            <span className="font-display font-bold text-xl text-ink leading-none">
+              {formatPrice(minPrice)}
+            </span>
+            {hasDiscount && (
+              <span className="text-xs text-ink/35 line-through mt-1">{formatPrice(maxPrice)}</span>
+            )}
           </div>
-
-          <Link
-            to={`/product/${productSlug}`}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-950 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 transition-all shadow-sm"
+          <button
+            onClick={(e) => e.preventDefault()}
+            aria-label={`Quick add ${product.name}`}
+            className="btn-pop relative shrink-0 w-11 h-11 rounded-full bg-brand-500 text-ink flex items-center justify-center shadow-md hover:bg-brand-400 hover:shadow-glow active:scale-90 transition-all duration-300"
           >
-            Configure
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
+            <span className="pop-circle tl" /><span className="pop-circle tr" />
+            <span className="pop-circle bl" /><span className="pop-circle br" />
+            <Plus className="w-5 h-5" strokeWidth={2.75} />
+          </button>
         </div>
       </div>
     </div>
   );
 };
+
+export const ProductCardSkeleton = () => (
+  <div className="bg-white rounded-[2rem] p-3.5 shadow-card">
+    <div className="skeleton h-52 sm:h-56 rounded-[1.4rem]" />
+    <div className="px-2 pt-4 pb-1 space-y-2.5">
+      <div className="skeleton h-2.5 rounded-full w-1/4" />
+      <div className="skeleton h-4 rounded-lg w-3/4" />
+      <div className="skeleton h-3 rounded-full w-1/3" />
+      <div className="flex justify-between items-end pt-2">
+        <div className="skeleton h-6 w-24 rounded-lg" />
+        <div className="skeleton h-11 w-11 rounded-full" />
+      </div>
+    </div>
+  </div>
+);

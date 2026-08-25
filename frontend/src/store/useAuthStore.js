@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
+import { useToastStore } from './useToastStore';
 
 export const useAuthStore = create((set, get) => {
   // Initialize from localStorage if present
@@ -29,11 +30,12 @@ export const useAuthStore = create((set, get) => {
         localStorage.setItem('vortex_token', token);
         localStorage.setItem('vortex_user', JSON.stringify(user));
         set({ user, token, isAuthenticated: true, isLoading: false });
-        // Fetch addresses for the user
         get().fetchAddresses();
+        useToastStore.getState().success(`Welcome back, ${user.fullName || user.full_name}!`);
         return { success: true, user };
       } catch (err) {
         set({ error: err.message || 'Login failed', isLoading: false });
+        useToastStore.getState().error(err.message || 'Login failed');
         throw err;
       }
     },
@@ -46,9 +48,11 @@ export const useAuthStore = create((set, get) => {
         localStorage.setItem('vortex_token', token);
         localStorage.setItem('vortex_user', JSON.stringify(user));
         set({ user, token, isAuthenticated: true, isLoading: false });
+        useToastStore.getState().success('Account created successfully!');
         return { success: true, user };
       } catch (err) {
         set({ error: err.message || 'Registration failed', isLoading: false });
+        useToastStore.getState().error(err.message || 'Registration failed');
         throw err;
       }
     },
@@ -57,6 +61,7 @@ export const useAuthStore = create((set, get) => {
       localStorage.removeItem('vortex_token');
       localStorage.removeItem('vortex_user');
       set({ user: null, token: null, isAuthenticated: false, addresses: [] });
+      useToastStore.getState().info('Logged out successfully');
     },
 
     fetchAddresses: async () => {
@@ -76,8 +81,10 @@ export const useAuthStore = create((set, get) => {
       try {
         await authService.createAddress(addressData);
         await get().fetchAddresses();
+        useToastStore.getState().success('Address added successfully');
         return { success: true };
       } catch (err) {
+        useToastStore.getState().error(err.message || 'Failed to add address');
         throw err;
       }
     },
@@ -88,7 +95,9 @@ export const useAuthStore = create((set, get) => {
         set((state) => ({
           addresses: state.addresses.filter((a) => a.addressId !== addressId && a.address_id !== addressId),
         }));
+        useToastStore.getState().success('Address removed');
       } catch (err) {
+        useToastStore.getState().error(err.message || 'Failed to remove address');
         throw err;
       }
     }

@@ -6,10 +6,9 @@ export class ReviewController {
   async addReview(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const productId = parseInt(String(req.params.productId), 10);
-      const { rating, title, reviewText } = req.body;
+      const { rating, reviewText } = req.body;
       const review = await reviewService.addReview(req.user!.userId, productId, {
         rating: parseInt(String(rating), 10),
-        title,
         reviewText,
       });
       res.status(201).json({

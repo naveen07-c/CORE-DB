@@ -13,13 +13,12 @@ export class MemoryUserRepository implements IUserRepository {
     return user ? { ...user } : null;
   }
 
-  async create(userData: Omit<User, 'userId' | 'createdAt' | 'updatedAt'>): Promise<User> {
+  async create(userData: Omit<User, 'userId' | 'createdAt'>): Promise<User> {
     const now = new Date();
     const newUser: User = {
       userId: memoryStorage.getNextUserId(),
       ...userData,
       createdAt: now,
-      updatedAt: now,
     };
     memoryStorage.users.push(newUser);
 
@@ -41,7 +40,6 @@ export class MemoryUserRepository implements IUserRepository {
     memoryStorage.users[index] = {
       ...memoryStorage.users[index],
       ...updates,
-      updatedAt: new Date(),
     };
     return { ...memoryStorage.users[index] };
   }

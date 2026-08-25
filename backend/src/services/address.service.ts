@@ -15,7 +15,6 @@ export class AddressService {
     state: string;
     pincode: string;
     addressType?: AddressType;
-    isDefault?: boolean;
   }): Promise<Address> {
     return addressRepository.create({
       userId,
@@ -27,16 +26,11 @@ export class AddressService {
       state: data.state,
       pincode: data.pincode,
       addressType: data.addressType || 'HOME',
-      isDefault: data.isDefault || false,
     });
   }
 
   async deleteAddress(userId: number, addressId: number): Promise<boolean> {
     return addressRepository.delete(addressId, userId);
-  }
-
-  async setDefaultAddress(userId: number, addressId: number): Promise<boolean> {
-    return addressRepository.setDefault(addressId, userId);
   }
 }
 

@@ -49,15 +49,3 @@ export const optionalAuth = (req: AuthenticatedRequest, res: Response, next: Nex
 
   next();
 };
-
-export const requireAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-  if (!req.user || req.user.role !== 'ADMIN') {
-    res.status(403).json({
-      success: false,
-      error: 'Access forbidden: Administrator privileges required',
-      code: 'ERR_FORBIDDEN',
-    });
-    return;
-  }
-  next();
-};

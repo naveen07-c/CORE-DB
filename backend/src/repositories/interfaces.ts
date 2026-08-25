@@ -18,7 +18,7 @@ import {
 export interface IUserRepository {
   findById(userId: number): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
-  create(user: Omit<User, 'userId' | 'createdAt' | 'updatedAt'>): Promise<User>;
+  create(user: Omit<User, 'userId' | 'createdAt'>): Promise<User>;
   update(userId: number, updates: Partial<User>): Promise<User | null>;
   delete(userId: number): Promise<boolean>;
 }
@@ -28,11 +28,10 @@ export interface IAddressRepository {
   findById(addressId: number): Promise<Address | null>;
   create(address: Omit<Address, 'addressId' | 'createdAt'>): Promise<Address>;
   delete(addressId: number, userId: number): Promise<boolean>;
-  setDefault(addressId: number, userId: number): Promise<boolean>;
 }
 
 export interface ProductFilterParams {
-  categorySlug?: string;
+  categoryId?: number;
   search?: string;
   brand?: string;
   maxPrice?: number;
@@ -43,9 +42,8 @@ export interface ProductFilterParams {
 
 export interface ICatalogRepository {
   getCategories(): Promise<Category[]>;
-  getCategoryBySlug(slug: string): Promise<Category | null>;
   getProducts(filters: ProductFilterParams): Promise<{ total: number; page: number; totalPages: number; data: any[] }>;
-  getProductBySlugOrId(slugOrId: string | number): Promise<ProductDetailResponse | null>;
+  getProductById(productId: number): Promise<ProductDetailResponse | null>;
   getVariantById(variantId: number): Promise<ProductVariant | null>;
   updateVariantPrice(variantId: number, newPrice: number): Promise<boolean>;
   updateVariantStock(variantId: number, newStock: number): Promise<boolean>;

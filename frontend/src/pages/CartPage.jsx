@@ -17,18 +17,21 @@ export const CartPage = () => {
     }
   }, [isAuthenticated]);
 
+  const formatPrice = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount || 0);
+  };
+
   if (!isAuthenticated) {
     return (
-      <div className="max-w-md mx-auto my-20 p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm text-center space-y-4">
-        <ShoppingBag className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Sign in to view your bag</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Sign in to access your saved hardware items and custom variant configurations.
-        </p>
-        <Link
-          to="/login"
-          className="inline-block px-6 py-3 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 rounded-xl shadow-md"
-        >
+      <div className="max-w-md mx-auto my-20 p-8 bg-white rounded-2xl border border-gray-200 shadow-sm text-center space-y-4">
+        <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
+        <h2 className="text-xl font-bold text-gray-900">Sign in to view your bag</h2>
+        <p className="text-sm text-gray-500">Sign in to access your saved items.</p>
+        <Link to="/login" className="inline-block px-6 py-3 text-sm font-bold text-white bg-gray-900 hover:bg-gray-700 rounded-xl shadow-md">
           Sign In
         </Link>
       </div>
@@ -37,17 +40,12 @@ export const CartPage = () => {
 
   if (items.length === 0) {
     return (
-      <div className="max-w-lg mx-auto my-20 p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm text-center space-y-4">
-        <ShoppingBag className="w-16 h-16 text-slate-300 dark:text-slate-700 mx-auto" />
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Your Shopping Bag is Empty</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Explore our collection of creator ultrabooks, smartphones, and reference studio audio.
-        </p>
-        <Link
-          to="/catalog"
-          className="inline-flex items-center gap-2 px-6 py-3 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 rounded-xl shadow-md transition-all"
-        >
-          Browse Catalog
+      <div className="max-w-lg mx-auto my-20 p-12 bg-white rounded-2xl border border-gray-200 shadow-sm text-center space-y-4">
+        <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto" />
+        <h2 className="text-xl font-bold text-gray-900">Your Shopping Cart is Empty</h2>
+        <p className="text-sm text-gray-500">Looks like you haven't added anything yet.</p>
+        <Link to="/catalog" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-white bg-gray-900 hover:bg-gray-700 rounded-xl shadow-md transition-colors">
+          Continue Shopping
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -55,23 +53,17 @@ export const CartPage = () => {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-10 py-8 space-y-8">
-      {/* Title */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Shopping Bag</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          {itemCount} {itemCount === 1 ? 'item' : 'items'} ready for checkout.
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900">Shopping Cart</h1>
+        <p className="text-sm text-gray-500 mt-1">{itemCount} {itemCount === 1 ? 'item' : 'items'} in your cart</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left: Items List */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="lg:col-span-8 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm divide-y divide-gray-100">
           <div className="pb-4 flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-              Selected Hardware Items & Variants
-            </span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+            <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">Items</span>
+            <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5" />
               Price Lock Guarantee
             </span>
@@ -80,7 +72,7 @@ export const CartPage = () => {
           <div className="pt-2">
             {items.map((item) => (
               <CartItemRow
-                key={item.cartItemId || item.cart_item_id}
+                key={item.cartItemId}
                 item={item}
                 onUpdateQuantity={updateQuantity}
                 onRemove={removeItem}
@@ -89,16 +81,12 @@ export const CartPage = () => {
           </div>
 
           <div className="pt-4 flex justify-between items-center text-xs">
-            <Link
-              to="/catalog"
-              className="text-slate-900 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1"
-            >
+            <Link to="/catalog" className="text-gray-900 hover:underline font-bold flex items-center gap-1">
               ← Continue Shopping
             </Link>
           </div>
         </div>
 
-        {/* Right: Order Summary */}
         <div className="lg:col-span-4 space-y-6">
           <OrderSummary
             items={items}

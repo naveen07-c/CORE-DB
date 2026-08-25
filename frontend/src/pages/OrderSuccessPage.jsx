@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { CheckCircle2, Package, Printer, ArrowRight, ShieldCheck, Calendar, CreditCard, MapPin, Truck } from 'lucide-react';
 import { orderService } from '../services/orderService';
@@ -92,7 +92,7 @@ export const OrderSuccessPage = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-slate-100 dark:border-slate-800 gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white tracking-tight">VORTEX Hardware Labs</span>
+              <span className="font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white tracking-tight">Iron & Ivy</span>
               <Badge variant="success" size="sm">Paid & Confirmed</Badge>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Official Tax Invoice & Serialized Warranty Record</p>

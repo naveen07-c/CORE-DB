@@ -41,7 +41,6 @@ export class MemoryCartRepository implements ICartRepository {
         quantity: ci.quantity,
         stockAvailable: variant?.stockQuantity || 0,
         totalPrice,
-        imageUrl: variant?.imageUrl || null,
       };
     });
 

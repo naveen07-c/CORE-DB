@@ -7,7 +7,7 @@ export class MemoryOrderRepository implements IOrderRepository {
     userId: number,
     addressId: number,
     paymentMethod: string,
-    transactionId: string
+    transactionId?: string
   ): Promise<CheckoutResult> {
     // 1. Identify User Cart
     const cart = memoryStorage.carts.find((c) => c.userId === userId);
@@ -51,9 +51,7 @@ export class MemoryOrderRepository implements IOrderRepository {
       subtotal += variant.price * item.quantity;
     }
 
-    const tax = Number((subtotal * 0.18).toFixed(2)); // 18% Standard GST
-    const shipping = subtotal > 1000.00 ? 0.00 : 50.00; // Free shipping above 1000
-    const total = Number((subtotal + tax + shipping).toFixed(2));
+    const total = Number(subtotal.toFixed(2));
 
     const now = new Date();
     const orderId = memoryStorage.getNextOrderId();
@@ -63,13 +61,9 @@ export class MemoryOrderRepository implements IOrderRepository {
       orderId,
       userId,
       addressId,
-      orderStatus: 'PROCESSING',
-      subtotalAmount: subtotal,
-      taxAmount: tax,
-      shippingFee: shipping,
+      orderStatus: 'CONFIRMED',
       totalAmount: total,
       orderDate: now,
-      updatedAt: now,
     };
     memoryStorage.orders.push(newOrder);
 
@@ -77,15 +71,13 @@ export class MemoryOrderRepository implements IOrderRepository {
     for (const item of userCartItems) {
       const variant = memoryStorage.productVariants.find((v) => v.variantId === item.variantId)!;
       const product = memoryStorage.products.find((p) => p.productId === variant.productId)!;
-      const variantDetails = [variant.color, variant.size, variant.storage].filter(Boolean).join(' / ') || 'Standard';
 
       const orderItem: OrderItem = {
         orderItemId: memoryStorage.getNextOrderItemId(),
         orderId,
         variantId: variant.variantId,
-        productName: product.name,            // Immutable snapshot of product title
-        variantDetails,                       // Immutable snapshot of variant specifications
-        unitPrice: variant.price,             // Snapshot purchase price
+        productName: product.name,
+        price: variant.price,
         quantity: item.quantity,
         discount: 0.00,
         totalPrice: Number((variant.price * item.quantity).toFixed(2)),
@@ -97,9 +89,9 @@ export class MemoryOrderRepository implements IOrderRepository {
     }
 
     // 8. Create Payment Record (1:1 with Order)
-    const validPaymentMethod = ['CREDIT_CARD', 'DEBIT_CARD', 'UPI', 'NET_BANKING', 'COD'].includes(paymentMethod)
+    const validPaymentMethod = ['UPI', 'CARD', 'NET_BANKING', 'COD'].includes(paymentMethod)
       ? (paymentMethod as any)
-      : 'CREDIT_CARD';
+      : 'UPI';
 
     const newPayment: Payment = {
       paymentId: memoryStorage.getNextPaymentId(),
@@ -115,9 +107,10 @@ export class MemoryOrderRepository implements IOrderRepository {
     // 9. Purge Cart Items
     memoryStorage.cartItems = memoryStorage.cartItems.filter((ci) => ci.cartId !== cart.cartId);
 
+    const finalTransactionId = newPayment.transactionId || `TXN_${orderId}_${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
     return {
       orderId,
-      transactionId: newPayment.transactionId,
+      transactionId: finalTransactionId,
       statusCode: 'SUCCESS',
       message: 'Order placed and settled successfully.',
     };
@@ -137,14 +130,11 @@ export class MemoryOrderRepository implements IOrderRepository {
         orderId: order.orderId,
         orderDate: order.orderDate,
         orderStatus: order.orderStatus,
-        subtotalAmount: order.subtotalAmount,
-        taxAmount: order.taxAmount,
-        shippingFee: order.shippingFee,
         totalAmount: order.totalAmount,
         itemCount: items.reduce((sum, it) => sum + it.quantity, 0),
         items,
         paymentStatus: payment?.paymentStatus || 'SUCCESS',
-        paymentMethod: payment?.paymentMethod || 'CREDIT_CARD',
+        paymentMethod: payment?.paymentMethod || 'UPI',
         transactionId: payment?.transactionId,
         address,
       };
@@ -166,9 +156,6 @@ export class MemoryOrderRepository implements IOrderRepository {
       orderId: order.orderId,
       orderDate: order.orderDate,
       orderStatus: order.orderStatus,
-      subtotalAmount: order.subtotalAmount,
-      taxAmount: order.taxAmount,
-      shippingFee: order.shippingFee,
       totalAmount: order.totalAmount,
       items,
       payment: payment ? { ...payment } : null,

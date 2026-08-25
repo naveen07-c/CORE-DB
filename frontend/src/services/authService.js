@@ -23,9 +23,5 @@ export const authService = {
 
   deleteAddress: async (addressId) => {
     return await api.delete(`/user/addresses/${addressId}`);
-  },
-
-  setDefaultAddress: async (addressId) => {
-    return await api.patch(`/user/addresses/${addressId}/default`);
   }
 };

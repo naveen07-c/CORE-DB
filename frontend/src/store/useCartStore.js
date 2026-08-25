@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { cartService } from '../services/cartService';
 import { useAuthStore } from './useAuthStore';
+import { useToastStore } from './useToastStore';
 
 export const useCartStore = create((set, get) => ({
   cartId: null,
@@ -53,10 +54,12 @@ export const useCartStore = create((set, get) => ({
     try {
       await cartService.addItem(variantId, quantity);
       await get().fetchCart();
-      set({ isDrawerOpen: true }); // auto open cart drawer on addition
+      set({ isDrawerOpen: true });
+      useToastStore.getState().success('Added to cart!');
       return { success: true };
     } catch (err) {
       set({ isLoading: false, error: err.message });
+      useToastStore.getState().error(err.message || 'Failed to add to cart');
       throw err;
     }
   },
@@ -87,11 +90,11 @@ export const useCartStore = create((set, get) => ({
 
     try {
       await cartService.updateItemQuantity(cartItemId, newQuantity);
-      await get().fetchCart(); // reconcile with backend
+      await get().fetchCart();
     } catch (err) {
-      // rollback on error
       set({ items: previousItems });
       await get().fetchCart();
+      useToastStore.getState().error('Failed to update quantity');
       throw err;
     }
   },
@@ -108,9 +111,11 @@ export const useCartStore = create((set, get) => ({
     try {
       await cartService.removeItem(cartItemId);
       await get().fetchCart();
+      useToastStore.getState().success('Item removed from cart');
     } catch (err) {
       set({ items: previousItems });
       await get().fetchCart();
+      useToastStore.getState().error('Failed to remove item');
       throw err;
     }
   },

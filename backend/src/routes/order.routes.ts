@@ -8,7 +8,7 @@ const router = Router();
 
 const checkoutSchema = z.object({
   addressId: z.number().int().positive(),
-  paymentMethod: z.enum(['CREDIT_CARD', 'DEBIT_CARD', 'UPI', 'NET_BANKING', 'COD']),
+  paymentMethod: z.enum(['UPI', 'CARD', 'NET_BANKING', 'COD']),
 });
 
 router.post('/checkout', requireAuth, validateBody(checkoutSchema), (req, res, next) =>

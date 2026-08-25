@@ -9,7 +9,6 @@ const router = Router();
 
 const reviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
-  title: z.string().max(150).optional().nullable(),
   reviewText: z.string().min(5, 'Review must be at least 5 characters'),
 });
 
@@ -24,7 +23,7 @@ const stockUpdateSchema = z.object({
 // Categories & Products
 router.get('/categories', (req, res, next) => catalogController.getCategories(req, res, next));
 router.get('/products', (req, res, next) => catalogController.getProducts(req, res, next));
-router.get('/products/:slugOrId', (req, res, next) => catalogController.getProductBySlugOrId(req, res, next));
+router.get('/products/:productId', (req, res, next) => catalogController.getProductById(req, res, next));
 
 // Reviews
 router.get('/products/:productId/reviews', (req, res, next) => reviewController.getProductReviews(req, res, next));

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { X, ShoppingBag, ArrowRight, ShieldAlert, Sparkles, Truck } from 'lucide-react';
+import { X, ShoppingBag, Gift } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { CartItemRow } from './CartItemRow';
@@ -11,87 +11,95 @@ export const CartDrawer = () => {
   const { isDrawerOpen, closeDrawer, items, itemCount, subtotal, updateQuantity, removeItem, fetchCart } = useCartStore();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && isDrawerOpen) {
       fetchCart();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isDrawerOpen]);
 
   if (!isDrawerOpen) return null;
 
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatPrice = (amount) =>
+    new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2,
+      currency: 'INR',
+      maximumFractionDigits: 0,
     }).format(amount || 0);
-  };
+
+  const taxAmount = Number((subtotal * 0.18).toFixed(0));
+  const shippingFee = subtotal > 1000 ? 0 : subtotal > 0 ? 50 : 0;
+  const totalAmount = Number((subtotal + taxAmount + shippingFee).toFixed(0));
+  const freeShipProgress = Math.min((subtotal / 1000) * 100, 100);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
-        onClick={closeDrawer}
-      />
+      <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm animate-popin" onClick={closeDrawer} />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-        <div className="w-screen max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800">
+        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col rounded-l-[2rem] overflow-hidden">
           {/* Header */}
-          <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">Shopping Bag</h3>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{itemCount} {itemCount === 1 ? 'item' : 'items'} selected</p>
-              </div>
+          <div className="px-5 sm:px-7 py-5 bg-night text-white flex items-center justify-between relative overflow-hidden">
+            <div className="pointer-events-none absolute -top-10 -right-8 w-36 h-36 bg-brand-500/30 rounded-full blur-2xl" />
+            <h3 className="font-display font-bold text-lg flex items-center gap-2.5 relative">
+              <span className="w-9 h-9 rounded-2xl bg-brand-500 flex items-center justify-center shadow-glow">
+                <ShoppingBag className="w-4.5 h-4.5 w-[18px] h-[18px]" />
+              </span>
+              Your cart
+            </h3>
+            <div className="flex items-center gap-3 relative">
+              <span className="text-xs text-gray-400">{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>
+              <button
+                onClick={closeDrawer}
+                className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close cart"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-
-            <button
-              onClick={closeDrawer}
-              className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
 
-          {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 divide-y divide-slate-100 dark:divide-slate-800">
+          {/* Free shipping progress */}
+          {isAuthenticated && items.length > 0 && (
+            <div className="px-5 sm:px-7 py-3.5 bg-brand-50/60 border-b border-gray-100 text-xs text-gray-600">
+              <p>
+                {subtotal >= 1000 ? (
+                  <>You've unlocked <span className="font-bold text-brand-700">FREE delivery</span> 🎉</>
+                ) : (
+                  <>Add <span className="font-bold">{formatPrice(1000 - subtotal)}</span> more to unlock FREE delivery</>
+                )}
+              </p>
+              <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-brand-500 to-mint-500 transition-all duration-700"
+                  style={{ width: `${freeShipProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Items */}
+          <div className="flex-1 overflow-y-auto px-5 sm:px-7 divide-y divide-gray-100">
             {!isAuthenticated ? (
-              <div className="py-16 text-center space-y-4">
-                <ShoppingBag className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
-                <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Sign in to view your bag</h4>
-                <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
-                  Sign in to save items across devices and access verified customer pricing.
-                </p>
-                <Link
-                  to="/login"
-                  onClick={closeDrawer}
-                  className="inline-block px-5 py-2.5 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 rounded-xl shadow-md"
-                >
-                  Sign In
-                </Link>
+              <div className="py-20 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-peach flex items-center justify-center">
+                  <ShoppingBag className="w-7 h-7 text-brand-500" />
+                </div>
+                <h4 className="font-display font-bold text-lg">Sign in to view your cart</h4>
+                <p className="text-sm text-gray-500 max-w-xs mx-auto">Your items sync across devices when you're signed in.</p>
+                <Link to="/login" onClick={closeDrawer} className="btn-primary mx-auto">Sign in</Link>
               </div>
             ) : items.length === 0 ? (
-              <div className="py-16 text-center space-y-4">
-                <ShoppingBag className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
-                <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Your shopping bag is empty</h4>
-                <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
-                  Explore our collection to add precision hardware and customized variants.
-                </p>
-                <Link
-                  to="/catalog"
-                  onClick={closeDrawer}
-                  className="inline-block px-5 py-2.5 text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 rounded-xl shadow-md"
-                >
-                  Browse Catalog
-                </Link>
+              <div className="py-20 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-peach flex items-center justify-center">
+                  <ShoppingBag className="w-7 h-7 text-brand-500" />
+                </div>
+                <h4 className="font-display font-bold text-lg">Your cart is feeling light</h4>
+                <p className="text-sm text-gray-500 max-w-xs mx-auto">Discover trending picks and fresh drops.</p>
+                <Link to="/catalog" onClick={closeDrawer} className="btn-primary mx-auto">Start shopping</Link>
               </div>
             ) : (
               items.map((item) => (
                 <CartItemRow
-                  key={item.cartItemId || item.cart_item_id}
+                  key={item.cartItemId}
                   item={item}
                   onUpdateQuantity={updateQuantity}
                   onRemove={removeItem}
@@ -100,52 +108,37 @@ export const CartDrawer = () => {
             )}
           </div>
 
-          {/* Footer Subtotal & Checkout */}
+          {/* Footer */}
           {isAuthenticated && items.length > 0 && (
-            <div className="p-4 sm:p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 space-y-4">
+            <div className="p-5 sm:p-6 border-t border-gray-100 space-y-3.5 bg-cream/60">
+              <label className="flex items-center gap-2.5 text-xs text-gray-600 cursor-pointer">
+                <input type="checkbox" className="accent-brand-500 w-3.5 h-3.5" />
+                <Gift className="w-3.5 h-3.5 text-brand-600" /> This order contains a gift
+              </label>
+
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">{formatPrice(subtotal)}</span>
+                <div className="flex justify-between text-gray-500">
+                  <span>GST (18%)</span><span>{formatPrice(taxAmount)}</span>
                 </div>
-                <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                  <span>Standard Tax (18% GST)</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">{formatPrice(subtotal * 0.18)}</span>
-                </div>
-                <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                  <span>Insured Courier Shipping</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
-                    {subtotal > 1000 ? 'FREE' : '$50.00'}
+                <div className="flex justify-between text-gray-500">
+                  <span>Delivery</span>
+                  <span className={shippingFee === 0 ? 'font-bold text-emerald-600' : ''}>
+                    {shippingFee === 0 ? 'FREE' : formatPrice(shippingFee)}
                   </span>
                 </div>
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-between text-sm font-bold text-slate-900 dark:text-white">
-                  <span>Total Amount</span>
-                  <span className="text-base text-slate-900 dark:text-emerald-400 font-black font-mono">
-                    {formatPrice(subtotal + (subtotal * 0.18) + (subtotal > 1000 ? 0 : 50))}
-                  </span>
+                <div className="pt-2 border-t border-dashed border-gray-300 flex justify-between items-baseline">
+                  <span className="text-sm font-semibold text-gray-800">Total</span>
+                  <span className="font-display font-bold text-xl text-ink">{formatPrice(totalAmount)}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Link
-                  to="/cart"
-                  onClick={closeDrawer}
-                  className="w-full text-center py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                >
-                  View Bag
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeDrawer();
-                    navigate('/checkout');
-                  }}
-                  className="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 shadow-md transition-all flex items-center justify-center gap-1.5"
-                >
-                  Checkout
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => { closeDrawer(); navigate('/checkout'); }}
+                className="btn-primary w-full !py-3.5"
+              >
+                Checkout securely
+              </button>
             </div>
           )}
         </div>
@@ -153,3 +146,5 @@ export const CartDrawer = () => {
     </div>
   );
 };
+
+

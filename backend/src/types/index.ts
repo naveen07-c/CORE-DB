@@ -1,32 +1,26 @@
 // ================================================================================
-// DOMAIN ENTITIES & INTERFACES (11 RELATIONAL TABLES)
+// DOMAIN ENTITIES & INTERFACES (11 RELATIONAL TABLES) - ECOMMERCE_DB SCHEMA
 // ================================================================================
-
-export type UserRole = 'CUSTOMER' | 'ADMIN';
 
 export interface User {
   userId: number;
   fullName: string;
   email: string;
-  passwordHash: string;
+  password: string;
   phone?: string | null;
-  role: UserRole;
   isActive: boolean;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface Category {
   categoryId: number;
   name: string;
-  slug: string;
   description?: string | null;
-  imageUrl?: string | null;
   isActive: boolean;
   createdAt: Date;
 }
 
-export type AddressType = 'HOME' | 'WORK' | 'OTHER';
+export type AddressType = 'HOME' | 'OFFICE' | 'OTHER';
 
 export interface Address {
   addressId: number;
@@ -39,7 +33,6 @@ export interface Address {
   state: string;
   pincode: string;
   addressType: AddressType;
-  isDefault: boolean;
   createdAt: Date;
 }
 
@@ -47,13 +40,11 @@ export interface Product {
   productId: number;
   categoryId: number;
   name: string;
-  slug: string;
-  brand: string;
-  description: string;
+  description?: string | null;
+  brand?: string | null;
   basePrice: number;
   isActive: boolean;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface ProductVariant {
@@ -65,7 +56,6 @@ export interface ProductVariant {
   storage?: string | null;
   price: number;
   stockQuantity: number;
-  imageUrl?: string | null;
   isActive: boolean;
   createdAt: Date;
 }
@@ -86,34 +76,29 @@ export interface CartItem {
   updatedAt: Date;
 }
 
-export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 
 export interface Order {
   orderId: number;
   userId: number;
   addressId: number;
   orderStatus: OrderStatus;
-  subtotalAmount: number;
-  taxAmount: number;
-  shippingFee: number;
   totalAmount: number;
   orderDate: Date;
-  updatedAt: Date;
 }
 
 export interface OrderItem {
   orderItemId: number;
   orderId: number;
   variantId: number;
-  productName: string;      // Snapshot title
-  variantDetails: string;   // Snapshot 'Color / Size / Storage'
-  unitPrice: number;        // Snapshot price
+  productName: string;
+  price: number;
   quantity: number;
   discount: number;
   totalPrice: number;
 }
 
-export type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'UPI' | 'NET_BANKING' | 'COD';
+export type PaymentMethod = 'UPI' | 'CARD' | 'COD' | 'NET_BANKING';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
 
 export interface Payment {
@@ -122,7 +107,7 @@ export interface Payment {
   paymentMethod: PaymentMethod;
   amount: number;
   paymentStatus: PaymentStatus;
-  transactionId: string;
+  transactionId?: string | null;
   paymentDate: Date;
 }
 
@@ -130,10 +115,8 @@ export interface Review {
   reviewId: number;
   userId: number;
   productId: number;
-  rating: number; // 1-5
-  title?: string | null;
-  reviewText: string;
-  isVerified: boolean;
+  rating: number;
+  reviewText?: string | null;
   reviewDate: Date;
 }
 
@@ -144,7 +127,6 @@ export interface Review {
 export interface JWTPayload {
   userId: number;
   email: string;
-  role: UserRole;
   fullName: string;
 }
 
@@ -161,7 +143,6 @@ export interface ProductDetailResponse extends Product {
   category: {
     categoryId: number;
     name: string;
-    slug?: string;
   };
   variants: ProductVariant[];
   reviews: {
@@ -186,7 +167,6 @@ export interface CartResponse {
     quantity: number;
     stockAvailable: number;
     totalPrice: number;
-    imageUrl?: string | null;
   }>;
 }
 

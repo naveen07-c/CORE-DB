@@ -11,8 +11,8 @@ export class CatalogService {
     return catalogRepository.getProducts(filters);
   }
 
-  async getProductBySlugOrId(slugOrId: string | number): Promise<ProductDetailResponse> {
-    const product = await catalogRepository.getProductBySlugOrId(slugOrId);
+  async getProductById(productId: number): Promise<ProductDetailResponse> {
+    const product = await catalogRepository.getProductById(productId);
     if (!product) {
       const err: any = new Error('Product not found.');
       err.statusCode = 404;
