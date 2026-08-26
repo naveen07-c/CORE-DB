@@ -94,7 +94,7 @@ SELECT
   COUNT(v.variant_id) AS variantCount,
   COALESCE(MIN(v.price), p.base_price) AS minPrice,
   COALESCE(MAX(v.price), p.base_price) AS maxPrice,
-  COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.product_id), 5.0) AS rating,
+  COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.product_id), 0.0) AS rating,
   (SELECT COUNT(*) FROM reviews r2 WHERE r2.product_id = p.product_id) AS totalReviews
 FROM products p
 JOIN categories c ON c.category_id = p.category_id

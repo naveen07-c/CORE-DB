@@ -30,6 +30,11 @@ interface OrderItemRow extends RowDataPacket {
   order_item_id: number;
   order_id: number;
   variant_id: number;
+  product_id?: number;
+  sku?: string;
+  color?: string;
+  size?: string;
+  storage?: string;
   product_name: string;
   price: number;
   quantity: number;
@@ -192,7 +197,11 @@ export class MySqlOrderRepository implements IOrderRepository {
     const results: any[] = [];
     for (const o of orderRows) {
       const [items] = await pool.query<OrderItemRow[]>(
-        'SELECT * FROM order_items WHERE order_id = ? ORDER BY order_item_id',
+        `SELECT oi.*, v.product_id, v.sku, v.color, v.size, v.storage
+         FROM order_items oi
+         LEFT JOIN product_variants v ON v.variant_id = oi.variant_id
+         WHERE oi.order_id = ?
+         ORDER BY oi.order_item_id`,
         [o.order_id]
       );
       const [paymentRows] = await pool.query<PaymentRow[]>(
@@ -236,7 +245,11 @@ export class MySqlOrderRepository implements IOrderRepository {
     const o = orderRows[0];
 
     const [items] = await pool.query<OrderItemRow[]>(
-      'SELECT * FROM order_items WHERE order_id = ? ORDER BY order_item_id',
+      `SELECT oi.*, v.product_id, v.sku, v.color, v.size, v.storage
+       FROM order_items oi
+       LEFT JOIN product_variants v ON v.variant_id = oi.variant_id
+       WHERE oi.order_id = ?
+       ORDER BY oi.order_item_id`,
       [orderId]
     );
     const [paymentRows] = await pool.query<PaymentRow[]>(
@@ -269,16 +282,23 @@ export class MySqlOrderRepository implements IOrderRepository {
   }
 }
 
-const mapOrderItem = (r: OrderItemRow) => ({
-  orderItemId: r.order_item_id,
-  orderId: r.order_id,
-  variantId: r.variant_id,
-  productName: r.product_name,
-  price: Number(r.price),
-  quantity: r.quantity,
-  discount: Number(r.discount),
-  totalPrice: Number(r.total_price),
-});
+const mapOrderItem = (r: OrderItemRow) => {
+  const variantDetails = [r.color, r.size, r.storage].filter(Boolean).join(' • ') || r.sku || '';
+  return {
+    orderItemId: r.order_item_id,
+    orderId: r.order_id,
+    variantId: r.variant_id,
+    productId: r.product_id,
+    productName: r.product_name,
+    sku: r.sku || '',
+    variantDetails,
+    price: Number(r.price),
+    unitPrice: Number(r.price),
+    quantity: r.quantity,
+    discount: Number(r.discount),
+    totalPrice: Number(r.total_price),
+  };
+};
 
 const mapAddress = (r: any) => ({
   addressId: r.address_id,

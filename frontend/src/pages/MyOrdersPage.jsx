@@ -5,6 +5,7 @@ import { orderService } from '../services/orderService';
 import { useAuthStore } from '../store/useAuthStore';
 import { Loader } from '../components/common/Loader';
 import { Badge } from '../components/common/Badge';
+import { getProductImage } from '../utils/productImages';
 
 export const MyOrdersPage = () => {
   const { isAuthenticated } = useAuthStore();
@@ -31,10 +32,10 @@ export const MyOrdersPage = () => {
   }, [isAuthenticated]);
 
   const formatPrice = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2,
+      currency: 'INR',
+      maximumFractionDigits: 0,
     }).format(amount || 0);
   };
 
@@ -167,23 +168,63 @@ export const MyOrdersPage = () => {
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-                      {items.map((item, idx) => (
-                        <div
-                          key={item.orderItemId || item.order_item_id || idx}
-                          className="p-4 flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <p className="font-bold text-slate-900 dark:text-white">{item.productName || item.product_name}</p>
-                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400">{item.variantDetails || item.variant_details}</p>
-                            <p className="text-slate-400 text-[10px] mt-0.5">
-                              Unit Price: {formatPrice(item.unitPrice || item.unit_price)} × {item.quantity}
-                            </p>
+                      {items.map((item, idx) => {
+                        const pName = item.productName || item.product_name || 'Product';
+                        const vDetails = item.variantDetails || item.variant_details || item.sku || 'Standard';
+                        const uPrice = item.unitPrice || item.unit_price || item.price || 0;
+                        const tPrice = item.totalPrice || item.total_price || (uPrice * item.quantity);
+                        const prodId = item.productId || item.product_id;
+                        const varId = item.variantId || item.variant_id;
+                        const imgUrl = getProductImage(prodId, varId);
+
+                        return (
+                          <div
+                            key={item.orderItemId || item.order_item_id || idx}
+                            className="p-4 flex items-center justify-between text-xs gap-4"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 p-1.5 flex-shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                <img
+                                  src={imgUrl}
+                                  alt={pName}
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&q=80';
+                                  }}
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                {prodId ? (
+                                  <Link
+                                    to={`/product/${prodId}`}
+                                    className="font-bold text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors truncate block"
+                                  >
+                                    {pName}
+                                  </Link>
+                                ) : (
+                                  <p className="font-bold text-slate-900 dark:text-white truncate">{pName}</p>
+                                )}
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="inline-flex items-center text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40">
+                                    {vDetails}
+                                  </span>
+                                  {item.sku && (
+                                    <span className="text-[10px] font-mono text-slate-400">
+                                      SKU: {item.sku}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-slate-400 text-[11px] mt-1 font-mono">
+                                  Unit Price: {formatPrice(uPrice)} × {item.quantity}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="font-bold text-slate-900 dark:text-white font-mono text-sm flex-shrink-0">
+                              {formatPrice(tPrice)}
+                            </span>
                           </div>
-                          <span className="font-bold text-slate-900 dark:text-white font-mono">
-                            {formatPrice(item.totalPrice || item.total_price)}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

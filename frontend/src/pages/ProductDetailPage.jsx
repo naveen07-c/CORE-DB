@@ -25,6 +25,7 @@ import {
 import { productService } from '../services/productService';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useWishlistStore } from '../store/useWishlistStore';
 import { VariantSelector } from '../components/catalog/VariantSelector';
 import { ReviewList } from '../components/catalog/ReviewList';
 import { ProductCard } from '../components/catalog/ProductCard';
@@ -38,6 +39,7 @@ export const ProductDetailPage = () => {
   const navigate = useNavigate();
   const { addItem, openDrawer } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const { toggleWishlist, isInWishlist } = useWishlistStore();
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -164,12 +166,51 @@ export const ProductDetailPage = () => {
     );
   }
 
+  const handleShare = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const shareData = {
+      title: product?.name ? `${product.name} | VORTEX Commerce` : 'VORTEX Commerce',
+      text: product?.description || `Check out ${product?.name || 'this item'} on VORTEX Commerce!`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(window.location.href);
+        toastSuccess('Product link copied to clipboard!');
+      } else {
+        const input = document.createElement('input');
+        input.value = window.location.href;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        toastSuccess('Product link copied to clipboard!');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          toastSuccess('Product link copied to clipboard!');
+        } catch {
+          toastError('Unable to share or copy link.');
+        }
+      }
+    }
+  };
+
   const minPrice = product.minPrice ?? product.basePrice ?? 0;
   const maxPrice = product.maxPrice ?? product.basePrice ?? 0;
   const hasDiscount = maxPrice > minPrice;
   const discountPercent = hasDiscount ? Math.round(((maxPrice - minPrice) / maxPrice) * 100) : 0;
-  const rating = product.rating ?? product.averageRating ?? 0;
-  const totalReviews = product.totalReviews ?? product.reviewCount ?? 0;
+  const rating = product.reviews?.averageRating ?? product.rating ?? product.averageRating ?? 0;
+  const totalReviews = product.reviews?.totalReviews ?? product.totalReviews ?? product.reviewCount ?? 0;
+  const inWishlist = isInWishlist(product.productId);
   const mainImage = getProductImage(product.productId, selectedVariant?.variantId);
 
   const breadcrumbs = [
@@ -217,12 +258,32 @@ export const ProductDetailPage = () => {
                 </span>
               </div>
             )}
-            <div className="absolute top-4 right-4 flex flex-col gap-2">
-              <button className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors" aria-label="Add to wishlist">
-                <Heart className="w-5 h-5 text-gray-700" />
+            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleWishlist(product);
+                }}
+                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-300 ${
+                  inWishlist
+                    ? 'bg-white text-red-600 scale-105 border-2 border-red-200'
+                    : 'bg-white/90 text-gray-700 hover:bg-white hover:text-red-600 hover:scale-105'
+                }`}
+                aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+              >
+                <Heart className={`w-5 h-5 ${inWishlist ? 'fill-current text-red-600' : ''}`} />
               </button>
-              <button className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors" aria-label="Share">
-                <Share2 className="w-5 h-5 text-gray-700" />
+              <button
+                type="button"
+                onClick={handleShare}
+                className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white hover:text-blue-600 hover:scale-105 transition-all text-gray-700"
+                aria-label="Share product"
+                title="Share product link"
+              >
+                <Share2 className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -429,7 +490,11 @@ export const ProductDetailPage = () => {
             )}
 
             {activeTab === 'reviews' && (
-              <ReviewList productId={product.productId} />
+              <ReviewList
+                productId={product.productId}
+                reviews={product.reviews}
+                onReviewAdded={loadProduct}
+              />
             )}
           </div>
         </div>

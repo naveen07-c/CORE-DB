@@ -9,12 +9,13 @@ export const RatingStars = ({ rating = 0, totalReviews = null, size = 'sm', inte
   };
 
   const stars = [1, 2, 3, 4, 5];
+  const numRating = Number(rating) || 0;
 
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex items-center">
         {stars.map((star) => {
-          const isFilled = star <= Math.round(rating);
+          const isFilled = numRating > 0 && star <= Math.round(numRating);
           return (
             <button
               key={star}
@@ -32,7 +33,7 @@ export const RatingStars = ({ rating = 0, totalReviews = null, size = 'sm', inte
           );
         })}
       </div>
-      {rating > 0 && <span className="text-xs font-bold text-slate-700">{Number(rating).toFixed(1)}</span>}
+      {numRating > 0 && <span className="text-xs font-bold text-slate-700">{numRating.toFixed(1)}</span>}
       {totalReviews !== null && (
         <span className="text-xs text-slate-400">({totalReviews})</span>
       )}

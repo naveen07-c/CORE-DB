@@ -1,9 +1,10 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { CheckCircle2, Package, Printer, ArrowRight, ShieldCheck, Calendar, CreditCard, MapPin, Truck } from 'lucide-react';
 import { orderService } from '../services/orderService';
 import { Loader } from '../components/common/Loader';
 import { Badge } from '../components/common/Badge';
+import { getProductImage } from '../utils/productImages';
 
 export const OrderSuccessPage = () => {
   const { id } = useParams();
@@ -29,10 +30,10 @@ export const OrderSuccessPage = () => {
   }, [id]);
 
   const formatPrice = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2,
+      currency: 'INR',
+      maximumFractionDigits: 0,
     }).format(amount || 0);
   };
 
@@ -172,23 +173,65 @@ export const OrderSuccessPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {orderItems.map((it, idx) => (
-                  <tr key={it.orderItemId || it.order_item_id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900 dark:text-white">{it.productName || it.product_name}</p>
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400">{it.variantDetails || it.variant_details}</p>
-                    </td>
-                    <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300 font-mono">
-                      {formatPrice(it.unitPrice || it.unit_price)}
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-bold text-slate-800 dark:text-slate-200 font-mono">
-                      {it.quantity}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white font-mono">
-                      {formatPrice(it.totalPrice || it.total_price || (it.unitPrice || it.unit_price) * it.quantity)}
-                    </td>
-                  </tr>
-                ))}
+                {orderItems.map((it, idx) => {
+                  const pName = it.productName || it.product_name || 'Product';
+                  const vDetails = it.variantDetails || it.variant_details || it.sku || 'Standard';
+                  const uPrice = it.unitPrice || it.unit_price || it.price || 0;
+                  const tPrice = it.totalPrice || it.total_price || (uPrice * it.quantity);
+                  const prodId = it.productId || it.product_id;
+                  const varId = it.variantId || it.variant_id;
+                  const imgUrl = getProductImage(prodId, varId);
+
+                  return (
+                    <tr key={it.orderItemId || it.order_item_id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 flex-shrink-0 flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            <img
+                              src={imgUrl}
+                              alt={pName}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&q=80';
+                              }}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            {prodId ? (
+                              <Link
+                                to={`/product/${prodId}`}
+                                className="font-bold text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors truncate block"
+                              >
+                                {pName}
+                              </Link>
+                            ) : (
+                              <p className="font-bold text-slate-900 dark:text-white truncate">{pName}</p>
+                            )}
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.2 rounded">
+                                {vDetails}
+                              </span>
+                              {it.sku && (
+                                <span className="text-[10px] font-mono text-slate-400">
+                                  ({it.sku})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300 font-mono">
+                        {formatPrice(uPrice)}
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-bold text-slate-800 dark:text-slate-200 font-mono">
+                        {it.quantity}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-white font-mono">
+                        {formatPrice(tPrice)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

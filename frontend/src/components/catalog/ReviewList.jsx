@@ -17,7 +17,9 @@ export const ReviewList = ({ productId, reviews = {}, onReviewAdded }) => {
   const [successMessage, setSuccessMessage] = useState('');
 
   const reviewItems = reviews.items || [];
-  const averageRating = reviews.averageRating || (reviewItems.length ? reviewItems.reduce((a, b) => a + b.rating, 0) / reviewItems.length : 5.0);
+  const averageRating = reviews.averageRating !== undefined && reviews.averageRating !== null
+    ? reviews.averageRating
+    : (reviewItems.length ? reviewItems.reduce((a, b) => a + b.rating, 0) / reviewItems.length : 0);
   const totalReviews = reviews.totalReviews ?? reviewItems.length;
 
   const handleSubmit = async (e) => {

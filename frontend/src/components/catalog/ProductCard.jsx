@@ -1,10 +1,14 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { RatingStars } from '../common/RatingStars';
-import { Heart, Plus } from 'lucide-react';
+import { Heart, Plus, Check, Loader2 } from 'lucide-react';
 import { getProductImage, FALLBACK_IMAGE } from '../../utils/productImages';
 import { SmartImage } from '../common/SmartImage';
 import { useWishlistStore } from '../../store/useWishlistStore';
+import { useCartStore } from '../../store/useCartStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useToastStore } from '../../store/useToastStore';
+import { productService } from '../../services/productService';
 
 const formatPrice = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -17,8 +21,14 @@ const formatPrice = (amount) =>
 const PASTELS = ['bg-peach', 'bg-mint-100', 'bg-sky-200', 'bg-lemon-300/50'];
 
 export const ProductCard = ({ product }) => {
+  const navigate = useNavigate();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
+  const { addItem } = useCartStore();
+  const { isAuthenticated } = useAuthStore();
   const inWishlist = isInWishlist(product.productId);
+
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
 
   const minPrice = product.minPrice ?? product.basePrice ?? 0;
   const maxPrice = product.maxPrice ?? product.basePrice ?? 0;
@@ -33,6 +43,47 @@ export const ProductCard = ({ product }) => {
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product);
+  };
+
+  const handleQuickAdd = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      useToastStore.getState().error('Please sign in to add items to your cart.');
+      navigate('/login');
+      return;
+    }
+
+    if (adding) return;
+    setAdding(true);
+
+    try {
+      let targetVariantId = product.defaultVariantId || product.default_variant_id || product.variantId;
+
+      if (!targetVariantId) {
+        const detailsRes = await productService.getProductById(product.productId);
+        const details = detailsRes.data || detailsRes;
+        const variants = details.variants || [];
+        const activeVariant = variants.find((v) => v.stockQuantity > 0) || variants[0];
+        if (activeVariant) {
+          targetVariantId = activeVariant.variantId || activeVariant.variant_id;
+        }
+      }
+
+      if (!targetVariantId) {
+        navigate(`/product/${product.productId}`);
+        return;
+      }
+
+      await addItem(targetVariantId, 1);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1500);
+    } catch (err) {
+      console.error('Quick add error:', err);
+    } finally {
+      setAdding(false);
+    }
   };
 
   return (
@@ -104,13 +155,24 @@ export const ProductCard = ({ product }) => {
             )}
           </div>
           <button
-            onClick={(e) => e.preventDefault()}
+            onClick={handleQuickAdd}
+            disabled={adding}
             aria-label={`Quick add ${product.name}`}
-            className="btn-pop relative shrink-0 w-11 h-11 rounded-full bg-brand-500 text-ink flex items-center justify-center shadow-md hover:bg-brand-400 hover:shadow-glow active:scale-90 transition-all duration-300"
+            className={`btn-pop relative shrink-0 w-11 h-11 rounded-full text-ink flex items-center justify-center shadow-md transition-all duration-300 cursor-pointer ${
+              added
+                ? 'bg-mint-400 text-ink scale-105 shadow-glow'
+                : 'bg-brand-500 hover:bg-brand-400 hover:shadow-glow active:scale-90'
+            }`}
           >
             <span className="pop-circle tl" /><span className="pop-circle tr" />
             <span className="pop-circle bl" /><span className="pop-circle br" />
-            <Plus className="w-5 h-5" strokeWidth={2.75} />
+            {adding ? (
+              <Loader2 className="w-5 h-5 animate-spin text-ink" />
+            ) : added ? (
+              <Check className="w-5 h-5 stroke-[2.75]" />
+            ) : (
+              <Plus className="w-5 h-5" strokeWidth={2.75} />
+            )}
           </button>
         </div>
       </div>

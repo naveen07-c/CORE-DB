@@ -122,7 +122,9 @@ export class MemoryOrderRepository implements IOrderRepository {
       .sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
 
     return userOrders.map((order) => {
-      const items = memoryStorage.orderItems.filter((oi) => oi.orderId === order.orderId);
+      const items = memoryStorage.orderItems
+        .filter((oi) => oi.orderId === order.orderId)
+        .map(mapMemoryOrderItem);
       const payment = memoryStorage.payments.find((p) => p.orderId === order.orderId);
       const address = memoryStorage.addresses.find((a) => a.addressId === order.addressId);
 
@@ -147,7 +149,9 @@ export class MemoryOrderRepository implements IOrderRepository {
     );
     if (!order) return null;
 
-    const items = memoryStorage.orderItems.filter((oi) => oi.orderId === order.orderId);
+    const items = memoryStorage.orderItems
+      .filter((oi) => oi.orderId === order.orderId)
+      .map(mapMemoryOrderItem);
     const payment = memoryStorage.payments.find((p) => p.orderId === order.orderId);
     const address = memoryStorage.addresses.find((a) => a.addressId === order.addressId);
     const user = memoryStorage.users.find((u) => u.userId === order.userId);
@@ -164,3 +168,24 @@ export class MemoryOrderRepository implements IOrderRepository {
     };
   }
 }
+
+const mapMemoryOrderItem = (oi: OrderItem) => {
+  const variant = memoryStorage.productVariants.find((v) => v.variantId === oi.variantId);
+  const variantDetails = variant
+    ? [variant.color, variant.size, variant.storage].filter(Boolean).join(' • ') || variant.sku
+    : '';
+  return {
+    orderItemId: oi.orderItemId,
+    orderId: oi.orderId,
+    variantId: oi.variantId,
+    productId: variant?.productId,
+    productName: oi.productName,
+    sku: variant?.sku || '',
+    variantDetails,
+    price: oi.price,
+    unitPrice: oi.price,
+    quantity: oi.quantity,
+    discount: oi.discount,
+    totalPrice: oi.totalPrice,
+  };
+};
