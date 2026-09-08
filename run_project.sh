@@ -118,8 +118,8 @@ echo -e "  📡 ${BOLD}Backend REST API:${RESET}        ${BOLD}${CYAN}http://${L
 echo -e "  📄 ${BOLD}Healthcheck:${RESET}             ${BOLD}${CYAN}http://${LAN_IP}:5000/api/health${RESET}"
 echo -e "----------------------------------------------------------------"
 echo -e "  🔑 Demo Credentials:"
-echo -e "     - Customer: ${BOLD}customer@test.com${RESET} / ${BOLD}Pass123!${RESET}"
-echo -e "     - Admin:    ${BOLD}admin@vortex.com${RESET} / ${BOLD}Pass123!${RESET}"
+echo -e "     - Customer: ${BOLD}rahul@example.com${RESET} / ${BOLD}Pass123!${RESET}"
+echo -e "     - Shopper:  ${BOLD}priya@example.com${RESET} / ${BOLD}Pass123!${RESET}"
 echo -e "----------------------------------------------------------------"
 echo -e "${YELLOW}Press [Ctrl+C] to stop both frontend and backend servers.${RESET}\n"
 

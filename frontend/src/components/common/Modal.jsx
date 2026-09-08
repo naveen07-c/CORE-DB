@@ -18,27 +18,30 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
+      <div
+        className="fixed inset-0 bg-ink/40 backdrop-blur-sm transition-opacity animate-popin"
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <div className={`relative transform overflow-hidden rounded-3xl bg-white dark:bg-slate-900 text-left shadow-2xl transition-all w-full ${maxWidth} my-8 border border-slate-100 dark:border-slate-800`}>
+        <div
+          className={`relative transform overflow-hidden rounded-[2rem] bg-white text-left shadow-lift transition-all w-full ${maxWidth} my-8 border-2 border-ink/10`}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+          <div className="flex items-center justify-between border-b-2 border-ink/5 px-6 py-4">
+            <h3 className="font-display font-bold text-base text-ink">{title}</h3>
             <button
               onClick={onClose}
-              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              className="rounded-full p-1.5 text-ink/40 hover:bg-cream hover:text-ink transition-colors"
+              aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="px-6 py-6 max-h-[80vh] overflow-y-auto text-slate-900 dark:text-slate-100">
+          <div className="px-6 py-6 max-h-[80vh] overflow-y-auto text-ink">
             {children}
           </div>
         </div>
@@ -46,3 +49,5 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
     </div>
   );
 };
+
+export default Modal;

@@ -40,6 +40,16 @@ export const Navbar = () => {
     return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
 
+  // Close the menu with the Escape key
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -124,8 +134,8 @@ export const Navbar = () => {
       >
         <Bubbles count={12} className="opacity-25" />
 
-        {/* Overlay top bar: logo + close */}
-        <div className="absolute top-0 inset-x-0 h-[72px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        {/* Overlay top bar: logo + close (z-10 keeps it clickable above the content layer) */}
+        <div className="absolute top-0 inset-x-0 h-[72px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between z-10">
           <Link to="/" className="font-display font-bold text-2xl tracking-tight text-white" aria-label="Home">
             Iron <span className="text-gradient">&amp;</span> Ivy
           </Link>

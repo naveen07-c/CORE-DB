@@ -1,10 +1,13 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { RatingStars } from '../common/RatingStars';
-import { Heart, Plus } from 'lucide-react';
+import { Heart, Plus, Loader2 } from 'lucide-react';
 import { getProductImage, FALLBACK_IMAGE } from '../../utils/productImages';
 import { SmartImage } from '../common/SmartImage';
 import { useWishlistStore } from '../../store/useWishlistStore';
+import { useCartStore } from '../../store/useCartStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useToastStore } from '../../store/useToastStore';
 
 const formatPrice = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -17,7 +20,13 @@ const formatPrice = (amount) =>
 const PASTELS = ['bg-peach', 'bg-mint-100', 'bg-sky-200', 'bg-lemon-300/50'];
 
 export const ProductCard = ({ product }) => {
+  const navigate = useNavigate();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
+  const { addItem } = useCartStore();
+  const { isAuthenticated } = useAuthStore();
+  const toast = useToastStore();
+  const [isQuickAdding, setIsQuickAdding] = useState(false);
+
   const inWishlist = isInWishlist(product.productId);
 
   const minPrice = product.minPrice ?? product.basePrice ?? 0;
@@ -33,6 +42,38 @@ export const ProductCard = ({ product }) => {
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product);
+  };
+
+  const handleQuickAdd = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isQuickAdding) return;
+
+    if (!isAuthenticated) {
+      toast.info('Sign in to start shopping!');
+      navigate('/login');
+      return;
+    }
+
+    setIsQuickAdding(true);
+    try {
+      // Add the cheapest in-stock variant; fall back to the first variant
+      const variants = product.variants || [];
+      const inStock = variants.filter((v) => (v.stockQuantity ?? 1) > 0);
+      const sorted = (inStock.length > 0 ? inStock : variants).sort(
+        (a, b) => (a.price ?? 0) - (b.price ?? 0)
+      );
+      const chosen = sorted[0];
+      if (!chosen) {
+        toast.error('This product has no purchasable variations right now.');
+        return;
+      }
+      await addItem(chosen.variantId, 1);
+    } catch (err) {
+      // error toast already raised by the cart store
+    } finally {
+      setIsQuickAdding(false);
+    }
   };
 
   return (
@@ -104,13 +145,18 @@ export const ProductCard = ({ product }) => {
             )}
           </div>
           <button
-            onClick={(e) => e.preventDefault()}
-            aria-label={`Quick add ${product.name}`}
-            className="btn-pop relative shrink-0 w-11 h-11 rounded-full bg-brand-500 text-ink flex items-center justify-center shadow-md hover:bg-brand-400 hover:shadow-glow active:scale-90 transition-all duration-300"
+            onClick={handleQuickAdd}
+            disabled={isQuickAdding}
+            aria-label={`Quick add ${product.name} to cart`}
+            className="btn-pop relative shrink-0 w-11 h-11 rounded-full bg-brand-500 text-ink flex items-center justify-center shadow-md hover:bg-brand-400 hover:shadow-glow active:scale-90 transition-all duration-300 disabled:opacity-70"
           >
             <span className="pop-circle tl" /><span className="pop-circle tr" />
             <span className="pop-circle bl" /><span className="pop-circle br" />
-            <Plus className="w-5 h-5" strokeWidth={2.75} />
+            {isQuickAdding ? (
+              <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.75} />
+            ) : (
+              <Plus className="w-5 h-5" strokeWidth={2.75} />
+            )}
           </button>
         </div>
       </div>

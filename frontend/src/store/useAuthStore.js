@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
 import { useToastStore } from './useToastStore';
+import { useCartStore } from './useCartStore';
 
 export const useAuthStore = create((set, get) => {
   // Initialize from localStorage if present
@@ -11,6 +12,15 @@ export const useAuthStore = create((set, get) => {
     if (storedUser) initialUser = JSON.parse(storedUser);
   } catch (e) {
     console.error('Failed to parse cached user:', e);
+  }
+
+  // React to session expiry broadcast by the axios interceptor (401 response)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('auth:unauthorized', () => {
+      if (localStorage.getItem('vortex_token')) return; // interceptor already cleared it
+      set({ user: null, token: null, isAuthenticated: false, addresses: [] });
+      useToastStore.getState().info('Session expired — please sign in again.');
+    });
   }
 
   return {
@@ -61,6 +71,7 @@ export const useAuthStore = create((set, get) => {
       localStorage.removeItem('vortex_token');
       localStorage.removeItem('vortex_user');
       set({ user: null, token: null, isAuthenticated: false, addresses: [] });
+      useCartStore.getState().clearCartState();
       useToastStore.getState().info('Logged out successfully');
     },
 

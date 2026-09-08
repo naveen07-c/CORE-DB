@@ -2,16 +2,19 @@ import React, { useMemo } from 'react';
 import { Check, XCircle, CheckCircle2, Shield } from 'lucide-react';
 import { Badge } from '../common/Badge';
 
+const formatPrice = (amount) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount || 0);
+
 export const VariantSelector = ({
   variants = [],
   selectedVariant,
   onSelectVariant,
 }) => {
-  if (!variants || variants.length === 0) {
-    return null;
-  }
-
-  // Extract unique attribute lists
+  // Extract unique attribute lists (hooks must run before any early return)
   const colors = useMemo(() => {
     const set = new Set();
     variants.forEach((v) => {
@@ -35,6 +38,10 @@ export const VariantSelector = ({
     });
     return Array.from(set);
   }, [variants]);
+
+  if (!variants || variants.length === 0) {
+    return null;
+  }
 
   // Handler to pick variant when an attribute changes
   const handleAttributeChange = (attributeType, value) => {
@@ -61,132 +68,83 @@ export const VariantSelector = ({
   const stock = selectedVariant?.stockQuantity ?? 0;
   const isOutOfStock = stock === 0;
 
+  const attributeGroup = (label, options, attrKey) => {
+    if (options.length === 0) return null;
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-ink uppercase tracking-wider">
+            {label}:{' '}
+            <span className="text-ink/60 font-semibold normal-case ml-1">
+              {selectedVariant?.[attrKey] || 'Select'}
+            </span>
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {options.map((value) => {
+            const isSelected = selectedVariant?.[attrKey] === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleAttributeChange(attrKey, value)}
+                className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-ink border-ink text-white shadow-md'
+                    : 'bg-white border-ink/10 text-ink/70 hover:border-brand-400 hover:text-brand-600'
+                }`}
+              >
+                {isSelected && <Check className="w-3.5 h-3.5 text-lemon-400" />}
+                {value}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. Color Selection */}
-      {colors.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-              Color: <span className="text-gray-600 font-semibold normal-case ml-1">{selectedVariant?.color || 'Select'}</span>
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {colors.map((color) => {
-              const isSelected = selectedVariant?.color === color;
-              return (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => handleAttributeChange('color', color)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-gray-900 border-gray-900 text-white shadow-sm'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-                  }`}
-                >
-                  {isSelected && <Check className="w-3.5 h-3.5 text-green-500" />}
-                  {color}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {attributeGroup('Color', colors, 'color')}
 
       {/* 2. Size Selection */}
-      {sizes.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-              Size: <span className="text-gray-600 font-semibold normal-case ml-1">{selectedVariant?.size || 'Select'}</span>
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {sizes.map((size) => {
-              const isSelected = selectedVariant?.size === size;
-              return (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => handleAttributeChange('size', size)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-gray-900 border-gray-900 text-white shadow-sm'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-                  }`}
-                >
-                  {isSelected && <Check className="w-3.5 h-3.5 text-green-500" />}
-                  {size}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {attributeGroup('Size', sizes, 'size')}
 
       {/* 3. Storage / Configuration Selection */}
-      {storages.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-              Storage: <span className="text-gray-600 font-semibold normal-case ml-1">{selectedVariant?.storage || 'Select'}</span>
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {storages.map((storage) => {
-              const isSelected = selectedVariant?.storage === storage;
-              return (
-                <button
-                  key={storage}
-                  type="button"
-                  onClick={() => handleAttributeChange('storage', storage)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-gray-900 border-gray-900 text-white shadow-sm'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-                  }`}
-                >
-                  {isSelected && <Check className="w-3.5 h-3.5 text-green-500" />}
-                  {storage}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {attributeGroup('Storage', storages, 'storage')}
 
       {/* Direct Variant Card Selector */}
       {variants.length > 1 && (
         <div className="pt-2">
-          <p className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Available SKU Variations</p>
+          <p className="text-xs font-bold text-ink uppercase tracking-wider mb-2">Available variations</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {variants.map((v) => {
               const isSelected = v.variantId === selectedVariant?.variantId;
               const label = [v.color, v.size, v.storage].filter(Boolean).join(' / ') || v.sku;
               const vStock = v.stockQuantity ?? 0;
-              const vPrice = v.price;
 
               return (
                 <button
                   key={v.variantId || v.sku}
                   type="button"
                   onClick={() => onSelectVariant(v)}
-                  className={`p-3.5 rounded-xl text-left border transition-all flex flex-col justify-between ${
+                  className={`p-3.5 rounded-2xl text-left border-2 transition-all flex flex-col justify-between ${
                     isSelected
-                      ? 'bg-gray-50 border-gray-900 shadow-sm ring-1 ring-gray-900'
-                      : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      ? 'bg-peach/60 border-ink shadow-md'
+                      : 'bg-white border-ink/10 hover:border-brand-300 hover:bg-peach/30'
                   }`}
                 >
                   <div className="flex justify-between items-start">
-                    <span className="text-xs font-bold text-gray-900 line-clamp-1">{label}</span>
-                    <span className="text-xs font-black text-gray-900 font-mono ml-2">
-                      {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(vPrice)}
+                    <span className="text-xs font-bold text-ink line-clamp-1">{label}</span>
+                    <span className="text-xs font-black text-ink font-mono ml-2">
+                      {formatPrice(v.price)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 text-[10px]">
-                    <span className="font-mono text-gray-500">SKU: {v.sku}</span>
-                    <span className={vStock > 0 ? 'text-green-700 font-bold' : 'text-red-600 font-bold'}>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-ink/5 text-[10px]">
+                    <span className="font-mono text-ink/40">SKU: {v.sku}</span>
+                    <span className={vStock > 0 ? 'text-mint-600 font-bold' : 'text-red-600 font-bold'}>
                       {vStock > 0 ? `${vStock} in stock` : 'Out of stock'}
                     </span>
                   </div>
@@ -199,39 +157,47 @@ export const VariantSelector = ({
 
       {/* Selected SKU & Inventory Status Card */}
       {selectedVariant && (
-        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
+        <div className="p-4 rounded-2xl bg-cream border-2 border-ink/10 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-gray-500">
-                SKU: <strong className="text-gray-900 font-bold">{selectedVariant.sku}</strong>
+              <span className="text-xs font-mono text-ink/50">
+                SKU: <strong className="text-ink font-bold">{selectedVariant.sku}</strong>
               </span>
             </div>
 
             {/* Inventory Status Pill */}
             {stock > 5 ? (
               <Badge variant="success" size="md">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 In Stock ({stock} available)
               </Badge>
             ) : stock > 0 ? (
               <Badge variant="warning" size="md">
-                <Check className="w-3.5 h-3.5 text-amber-600" />
+                <Check className="w-3.5 h-3.5" />
                 Hurry! Only {stock} left
               </Badge>
             ) : (
               <Badge variant="danger" size="md">
-                <XCircle className="w-3.5 h-3.5 text-red-600" />
+                <XCircle className="w-3.5 h-3.5" />
                 Out of Stock
               </Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-gray-500">
-            <Shield className="w-3.5 h-3.5 text-green-600" />
-            <span>Price Snapshot Guaranteed on Order Placement</span>
+          <div className="flex items-center gap-2 text-[11px] text-ink/50">
+            <Shield className="w-3.5 h-3.5 text-mint-600" />
+            <span>Price locked in at the moment you place your order.</span>
           </div>
         </div>
+      )}
+
+      {isOutOfStock && (
+        <p className="text-xs font-semibold text-red-600">
+          This variation is sold out — pick another one above.
+        </p>
       )}
     </div>
   );
 };
+
+export default VariantSelector;

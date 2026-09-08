@@ -87,8 +87,8 @@ When started via `./run_project.sh`, you can access the application from any dev
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| **Customer** | `customer@test.com` | `Pass123!` |
-| **Admin** | `admin@vortex.com` | `Pass123!` |
+| **Customer** | `rahul@example.com` | `Pass123!` |
+| **Shopper** | `priya@example.com` | `Pass123!` |
 
 *(Quick-login buttons are also available on the Sign In page for one-click authentication)*
 

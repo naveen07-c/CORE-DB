@@ -13,6 +13,10 @@ export const productService = {
     return await api.get(`/products/${productId}`);
   },
 
+  getProductReviews: async (productId) => {
+    return await api.get(`/products/${productId}/reviews`);
+  },
+
   addReview: async (productId, reviewData) => {
     return await api.post(`/products/${productId}/reviews`, reviewData);
   }

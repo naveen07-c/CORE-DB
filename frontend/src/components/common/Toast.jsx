@@ -4,31 +4,31 @@ import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
 const Toast = ({ toast, onClose }) => {
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-600" />,
+    success: <CheckCircle className="w-5 h-5 text-mint-600" />,
     error: <XCircle className="w-5 h-5 text-red-600" />,
-    warning: <AlertCircle className="w-5 h-5 text-amber-600" />,
-    info: <Info className="w-5 h-5 text-blue-600" />,
+    warning: <AlertCircle className="w-5 h-5 text-lemon-500" />,
+    info: <Info className="w-5 h-5 text-sky-500" />,
   };
 
   const colors = {
-    success: 'bg-green-50 border-green-200 text-green-800',
-    error: 'bg-red-50 border-red-200 text-red-800',
-    warning: 'bg-amber-50 border-amber-200 text-amber-800',
-    info: 'bg-blue-50 border-blue-200 text-blue-800',
+    success: 'bg-white border-mint-300 text-ink',
+    error: 'bg-white border-red-200 text-ink',
+    warning: 'bg-white border-lemon-400 text-ink',
+    info: 'bg-white border-sky-300 text-ink',
   };
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 rounded-xl border shadow-lg animate-in slide-in-from-right duration-300 ${colors[toast.type]}`}
+      className={`flex items-start gap-3 p-4 rounded-2xl border-2 shadow-lift animate-popin ${colors[toast.type] || colors.info}`}
       style={{ minWidth: '300px', maxWidth: '420px' }}
     >
-      <div className="flex-shrink-0 mt-0.5">{icons[toast.type]}</div>
+      <div className="flex-shrink-0 mt-0.5">{icons[toast.type] || icons.info}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{toast.message}</p>
+        <p className="text-sm font-semibold">{toast.message}</p>
       </div>
       <button
         onClick={() => onClose(toast.id)}
-        className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+        className="flex-shrink-0 p-1 text-ink/30 hover:text-ink rounded-lg hover:bg-cream transition-colors"
         aria-label="Dismiss"
       >
         <X className="w-4 h-4" />
@@ -43,7 +43,7 @@ export const ToastContainer = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed top-24 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
       {toasts.map((toast) => (
         <div key={toast.id} className="pointer-events-auto">
           <Toast toast={toast} onClose={removeToast} />
@@ -52,3 +52,5 @@ export const ToastContainer = () => {
     </div>
   );
 };
+
+export default ToastContainer;

@@ -58,6 +58,14 @@ export class MySqlCartRepository implements ICartRepository {
           updatedAt: new Date(c.updated_at),
         };
       }
+      // ER_NO_REFERENCED_ROW_2: the JWT's user no longer exists in the DB
+      // (stale token after a DB reset). Surface as a clean 401 instead of a 500.
+      if (err && err.code === 'ER_NO_REFERENCED_ROW_2') {
+        const authErr: any = new Error('Your session is no longer valid. Please sign in again.');
+        authErr.statusCode = 401;
+        authErr.code = 'ERR_SESSION_INVALID';
+        throw authErr;
+      }
       throw err;
     }
   }

@@ -103,19 +103,19 @@ export const LoginPage = () => {
           <div className="grid grid-cols-2 gap-2 text-xs">
             <button
               type="button"
-              onClick={() => handleQuickLogin('customer@test.com', 'Pass123!')}
+              onClick={() => handleQuickLogin('rahul@example.com', 'Pass123!')}
               className="p-2 bg-white rounded border border-gray-300 shadow-sm hover:bg-gray-50 text-left transition-colors"
             >
               <span className="font-bold text-gray-800 block">Customer</span>
-              <span className="text-[10px] text-gray-400 truncate block">customer@test.com</span>
+              <span className="text-[10px] text-gray-400 truncate block">rahul@example.com</span>
             </button>
             <button
               type="button"
-              onClick={() => handleQuickLogin('admin@vortex.com', 'Pass123!')}
+              onClick={() => handleQuickLogin('priya@example.com', 'Pass123!')}
               className="p-2 bg-white rounded border border-gray-300 shadow-sm hover:bg-gray-50 text-left transition-colors"
             >
-              <span className="font-bold text-gray-800 block">Admin</span>
-              <span className="text-[10px] text-gray-400 truncate block">admin@vortex.com</span>
+              <span className="font-bold text-gray-800 block">Shopper</span>
+              <span className="text-[10px] text-gray-400 truncate block">priya@example.com</span>
             </button>
           </div>
           <p className="text-[10px] text-gray-400 mt-2">Password for both: Pass123!</p>

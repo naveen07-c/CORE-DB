@@ -1,54 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Trash2, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { Heart, Trash2, ArrowLeft } from 'lucide-react';
 import { useWishlistStore } from '../store/useWishlistStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useToastStore } from '../store/useToastStore';
 import { ProductCard } from '../components/catalog/ProductCard';
-import { getProductImage } from '../utils/productImages';
 
 export const WishlistPage = () => {
   const { items, removeFromWishlist, clearWishlist } = useWishlistStore();
   const { addItem, openDrawer } = useCartStore();
   const { isAuthenticated } = useAuthStore();
-  const [productDetails, setProductDetails] = useState({});
-
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
-  };
+  const toast = useToastStore();
 
   const handleAddToCart = async (product) => {
-    if (!isAuthenticated) return;
-    if (!product.variants || product.variants.length === 0) return;
-    const firstVariant = product.variants[0];
+    if (!product.variants || product.variants.length === 0) {
+      toast.info('Open the product page to pick a variation first.');
+      return;
+    }
+    const inStock = product.variants.filter((v) => (v.stockQuantity ?? 1) > 0);
+    const pool = inStock.length > 0 ? inStock : product.variants;
+    const chosen = [...pool].sort((a, b) => (a.price ?? 0) - (b.price ?? 0))[0];
     try {
-      await addItem(firstVariant.variantId, 1);
+      await addItem(chosen.variantId, 1);
       openDrawer();
     } catch (err) {
-      console.error('Failed to add to cart:', err);
+      // error toast already raised by the cart store
     }
   };
-
-  const handleRemove = (productId) => {
-    removeFromWishlist(productId);
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-6">
-        <Heart className="w-16 h-16 text-gray-300 mx-auto" />
-        <h1 className="text-2xl font-bold text-gray-900">Sign in to view your wishlist</h1>
-        <p className="text-gray-500">Your saved items will be synced across devices.</p>
-        <Link to="/login" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold text-white bg-gray-900 hover:bg-gray-700 rounded-xl">
-          Sign In
-        </Link>
-      </div>
-    );
-  }
 
   if (items.length === 0) {
     return (
@@ -97,9 +76,9 @@ export const WishlistPage = () => {
               ...item,
               productId: item.productId,
               name: item.name,
-              minPrice: item.price,
-              maxPrice: item.price,
-              basePrice: item.price,
+              minPrice: item.price ?? item.minPrice,
+              maxPrice: item.price ?? item.maxPrice,
+              basePrice: item.price ?? item.basePrice,
               rating: item.rating || 0,
               totalReviews: item.reviewCount || 0,
               categoryName: item.categoryName,

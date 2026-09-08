@@ -25,6 +25,7 @@ import {
 import { productService } from '../services/productService';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useWishlistStore } from '../store/useWishlistStore';
 import { VariantSelector } from '../components/catalog/VariantSelector';
 import { ReviewList } from '../components/catalog/ReviewList';
 import { ProductCard } from '../components/catalog/ProductCard';
@@ -49,6 +50,37 @@ export const ProductDetailPage = () => {
   const [isAdding, setIsAdding] = useState(false);
 
   const { success: toastSuccess, error: toastError } = useToastStore();
+  const { toggleWishlist, isInWishlist } = useWishlistStore();
+
+  const inWishlist = product ? isInWishlist(product.productId) : false;
+
+  const handleWishlistToggle = () => {
+    if (!product) return;
+    toggleWishlist({
+      productId: product.productId,
+      name: product.name,
+      price: product.minPrice ?? product.basePrice ?? 0,
+      rating: product.rating ?? product.averageRating ?? 0,
+      reviewCount: product.totalReviews ?? product.reviews?.totalReviews ?? 0,
+      brand: product.brand,
+      categoryName: product.category?.name,
+      variants: product.variants || [],
+    });
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: product.name, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toastSuccess('Link copied to clipboard!');
+      }
+    } catch {
+      // user dismissed the share sheet — nothing to do
+    }
+  };
 
   const formatPrice = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -98,8 +130,10 @@ export const ProductDetailPage = () => {
     loadProduct();
   }, [productId]);
 
+  const isOutOfStock = (selectedVariant?.stockQuantity ?? 0) === 0;
+
   const handleAddToCart = async () => {
-    if (!selectedVariant) return;
+    if (!selectedVariant || isOutOfStock) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -117,7 +151,7 @@ export const ProductDetailPage = () => {
   };
 
   const handleBuyNow = async () => {
-    if (!selectedVariant) return;
+    if (!selectedVariant || isOutOfStock) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -218,10 +252,20 @@ export const ProductDetailPage = () => {
               </div>
             )}
             <div className="absolute top-4 right-4 flex flex-col gap-2">
-              <button className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors" aria-label="Add to wishlist">
-                <Heart className="w-5 h-5 text-gray-700" />
+              <button
+                onClick={handleWishlistToggle}
+                className={`w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white hover:scale-110 transition-all ${
+                  inWishlist ? 'text-brand-600' : 'text-gray-700'
+                }`}
+                aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+              >
+                <Heart className={`w-5 h-5 ${inWishlist ? 'fill-current' : ''}`} />
               </button>
-              <button className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors" aria-label="Share">
+              <button
+                onClick={handleShare}
+                className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white hover:scale-110 transition-all"
+                aria-label="Share"
+              >
                 <Share2 className="w-5 h-5 text-gray-700" />
               </button>
             </div>
@@ -332,18 +376,18 @@ export const ProductDetailPage = () => {
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
             <button
               onClick={handleAddToCart}
-              disabled={isAdding}
+              disabled={isAdding || isOutOfStock}
               className="btn-dark flex-1 !py-3.5 disabled:opacity-50 disabled:pointer-events-none"
             >
               <ShoppingBag className="w-5 h-5" />
-              {isAdding ? 'Adding…' : 'Add to cart'}
+              {isOutOfStock ? 'Out of stock' : isAdding ? 'Adding…' : 'Add to cart'}
             </button>
             <button
               onClick={handleBuyNow}
-              disabled={isAdding}
+              disabled={isAdding || isOutOfStock}
               className="btn-primary flex-1 !py-3.5 disabled:opacity-50 disabled:pointer-events-none"
             >
-              Buy now
+              {isOutOfStock ? 'Unavailable' : 'Buy now'}
             </button>
           </div>
 
@@ -429,7 +473,11 @@ export const ProductDetailPage = () => {
             )}
 
             {activeTab === 'reviews' && (
-              <ReviewList productId={product.productId} />
+              <ReviewList
+                productId={product.productId}
+                reviews={product.reviews}
+                onReviewAdded={loadProduct}
+              />
             )}
           </div>
         </div>
