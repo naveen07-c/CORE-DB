@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { RatingStars } from '../common/RatingStars';
-import { Heart, Plus, Loader2 } from 'lucide-react';
+import { Heart, Plus, Check, Loader2 } from 'lucide-react';
 import { getProductImage, FALLBACK_IMAGE } from '../../utils/productImages';
 import { SmartImage } from '../common/SmartImage';
 import { useWishlistStore } from '../../store/useWishlistStore';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useToastStore } from '../../store/useToastStore';
+import { productService } from '../../services/productService';
 
 const formatPrice = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -24,10 +25,10 @@ export const ProductCard = ({ product }) => {
   const { toggleWishlist, isInWishlist } = useWishlistStore();
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
-  const toast = useToastStore();
-  const [isQuickAdding, setIsQuickAdding] = useState(false);
-
   const inWishlist = isInWishlist(product.productId);
+
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
 
   const minPrice = product.minPrice ?? product.basePrice ?? 0;
   const maxPrice = product.maxPrice ?? product.basePrice ?? 0;
@@ -47,32 +48,41 @@ export const ProductCard = ({ product }) => {
   const handleQuickAdd = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isQuickAdding) return;
 
     if (!isAuthenticated) {
-      toast.info('Sign in to start shopping!');
+      useToastStore.getState().error('Please sign in to add items to your cart.');
       navigate('/login');
       return;
     }
 
-    setIsQuickAdding(true);
+    if (adding) return;
+    setAdding(true);
+
     try {
-      // Add the cheapest in-stock variant; fall back to the first variant
-      const variants = product.variants || [];
-      const inStock = variants.filter((v) => (v.stockQuantity ?? 1) > 0);
-      const sorted = (inStock.length > 0 ? inStock : variants).sort(
-        (a, b) => (a.price ?? 0) - (b.price ?? 0)
-      );
-      const chosen = sorted[0];
-      if (!chosen) {
-        toast.error('This product has no purchasable variations right now.');
+      let targetVariantId = product.defaultVariantId || product.default_variant_id || product.variantId;
+
+      if (!targetVariantId) {
+        const detailsRes = await productService.getProductById(product.productId);
+        const details = detailsRes.data || detailsRes;
+        const variants = details.variants || [];
+        const activeVariant = variants.find((v) => v.stockQuantity > 0) || variants[0];
+        if (activeVariant) {
+          targetVariantId = activeVariant.variantId || activeVariant.variant_id;
+        }
+      }
+
+      if (!targetVariantId) {
+        navigate(`/product/${product.productId}`);
         return;
       }
-      await addItem(chosen.variantId, 1);
+
+      await addItem(targetVariantId, 1);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1500);
     } catch (err) {
-      // error toast already raised by the cart store
+      console.error('Quick add error:', err);
     } finally {
-      setIsQuickAdding(false);
+      setAdding(false);
     }
   };
 
@@ -146,14 +156,20 @@ export const ProductCard = ({ product }) => {
           </div>
           <button
             onClick={handleQuickAdd}
-            disabled={isQuickAdding}
-            aria-label={`Quick add ${product.name} to cart`}
-            className="btn-pop relative shrink-0 w-11 h-11 rounded-full bg-brand-500 text-ink flex items-center justify-center shadow-md hover:bg-brand-400 hover:shadow-glow active:scale-90 transition-all duration-300 disabled:opacity-70"
+            disabled={adding}
+            aria-label={`Quick add ${product.name}`}
+            className={`btn-pop relative shrink-0 w-11 h-11 rounded-full text-ink flex items-center justify-center shadow-md transition-all duration-300 cursor-pointer ${
+              added
+                ? 'bg-mint-400 text-ink scale-105 shadow-glow'
+                : 'bg-brand-500 hover:bg-brand-400 hover:shadow-glow active:scale-90'
+            }`}
           >
             <span className="pop-circle tl" /><span className="pop-circle tr" />
             <span className="pop-circle bl" /><span className="pop-circle br" />
-            {isQuickAdding ? (
-              <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.75} />
+            {adding ? (
+              <Loader2 className="w-5 h-5 animate-spin text-ink" />
+            ) : added ? (
+              <Check className="w-5 h-5 stroke-[2.75]" />
             ) : (
               <Plus className="w-5 h-5" strokeWidth={2.75} />
             )}

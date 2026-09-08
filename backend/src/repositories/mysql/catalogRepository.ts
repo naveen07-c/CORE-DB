@@ -131,6 +131,7 @@ export class MySqlCatalogRepository implements ICatalogRepository {
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT
          p.product_id AS productId,
+         MIN(v.variant_id) AS defaultVariantId,
          p.name,
          p.brand,
          p.description,
@@ -140,7 +141,7 @@ export class MySqlCatalogRepository implements ICatalogRepository {
          COUNT(v.variant_id) AS variantCount,
          COALESCE(MIN(v.price), p.base_price) AS minPrice,
          COALESCE(MAX(v.price), p.base_price) AS maxPrice,
-         COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.product_id), 5.0) AS rating,
+         COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.product_id), 0.0) AS rating,
          (SELECT COUNT(*) FROM reviews r2 WHERE r2.product_id = p.product_id) AS totalReviews
        ${baseQuery}
        ORDER BY ${orderBy}
@@ -157,6 +158,7 @@ export class MySqlCatalogRepository implements ICatalogRepository {
       totalPages,
       data: rows.map((r: any) => ({
         productId: r.productId,
+        defaultVariantId: r.defaultVariantId ? Number(r.defaultVariantId) : undefined,
         name: r.name,
         brand: r.brand,
         description: r.description,
@@ -219,7 +221,7 @@ export class MySqlCatalogRepository implements ICatalogRepository {
     }));
 
     const averageRating =
-      reviews.length > 0 ? reviews.reduce((a, b) => a + b.rating, 0) / reviews.length : 5.0;
+      reviews.length > 0 ? reviews.reduce((a, b) => a + b.rating, 0) / reviews.length : 0;
 
     return {
       ...product,

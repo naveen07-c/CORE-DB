@@ -93,7 +93,7 @@ export const HomePage = () => {
                   <span className="pop-circle bl" /><span className="pop-circle br" />
                   SHOP NOW
                 </Link>
-                <a href="#categories" className="font-semibold text-ink/70 underline decoration-wavy decoration-mint-500 decoration-2 underline-offset-8 hover:text-brand-600 transition-colors">
+                <a href="#categories" className="font-semibold text-ink/75 hover:text-ink underline decoration-ink/20 hover:decoration-ink underline-offset-8 transition-all">
                   see categories
                 </a>
               </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Lock, ArrowRight, Loader2, Award } from 'lucide-react';
+import { getProductImage } from '../../utils/productImages';
 
 export const OrderSummary = ({
   items = [],
@@ -27,18 +28,31 @@ export const OrderSummary = ({
         Order Summary
       </h3>
 
-      <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+      <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
         {items.map((item) => {
           const name = item.productName || item.name || 'Product';
           const variant = item.variantDetails || item.sku || '';
           const qty = item.quantity || 1;
           const price = item.unitPrice || item.price || 0;
+          const imgUrl = getProductImage(item.productId, item.variantId);
 
           return (
-            <div key={item.cartItemId || Math.random()} className="flex justify-between items-start text-xs">
-              <div className="pr-2">
-                <span className="font-semibold text-gray-800 line-clamp-1">{name}</span>
-                <span className="text-[11px] text-gray-500 block">{variant} × {qty}</span>
+            <div key={item.cartItemId || Math.random()} className="flex justify-between items-center text-xs gap-3 py-1">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-gray-100 p-1 flex-shrink-0 flex items-center justify-center border border-gray-200 overflow-hidden">
+                  <img
+                    src={imgUrl}
+                    alt={name}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&q=80';
+                    }}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <span className="font-semibold text-gray-800 line-clamp-1 block">{name}</span>
+                  <span className="text-[10px] text-gray-500 block truncate">{variant} × {qty}</span>
+                </div>
               </div>
               <span className="font-bold text-gray-900 font-mono flex-shrink-0">{formatPrice(price * qty)}</span>
             </div>

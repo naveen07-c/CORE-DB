@@ -20,15 +20,17 @@ export const useWishlistStore = create((set, get) => ({
   items: getStoredWishlist(),
 
   isInWishlist: (productId) => {
-    return get().items.some(item => item.productId === productId);
+    if (!productId) return false;
+    return get().items.some(item => String(item.productId) === String(productId));
   },
 
   toggleWishlist: (product) => {
+    if (!product || !product.productId) return;
     const current = get().items;
-    const exists = current.some(item => item.productId === product.productId);
+    const exists = current.some(item => String(item.productId) === String(product.productId));
 
     if (exists) {
-      const updated = current.filter(item => item.productId !== product.productId);
+      const updated = current.filter(item => String(item.productId) !== String(product.productId));
       set({ items: updated });
       saveWishlist(updated);
       useToastStore.getState().info('Removed from wishlist');
@@ -41,7 +43,8 @@ export const useWishlistStore = create((set, get) => ({
   },
 
   removeFromWishlist: (productId) => {
-    const updated = get().items.filter(item => item.productId !== productId);
+    if (!productId) return;
+    const updated = get().items.filter(item => String(item.productId) !== String(productId));
     set({ items: updated });
     saveWishlist(updated);
     useToastStore.getState().info('Removed from wishlist');

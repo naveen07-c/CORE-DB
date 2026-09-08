@@ -6,7 +6,7 @@ export const productImages = {
     main: U('photo-1505740420928-5e560c06d30e'),
     variants: {
       1: U('photo-1505740420928-5e560c06d30e'),
-      2: U('photo-1546435770-a3e426bf472b'),
+      2: '/images/headphones-white.png',
     },
   },
   2: {

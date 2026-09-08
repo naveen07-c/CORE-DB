@@ -50,14 +50,16 @@ export class MemoryCatalogRepository implements ICatalogRepository {
       const category = memoryStorage.categories.find((c) => c.categoryId === p.categoryId);
       const variants = memoryStorage.productVariants.filter((v) => v.productId === p.productId && v.isActive);
       const reviews = memoryStorage.reviews.filter((r) => r.productId === p.productId);
-      const avgRating = reviews.length > 0 ? reviews.reduce((a, b) => a + b.rating, 0) / reviews.length : 5.0;
+      const avgRating = reviews.length > 0 ? Number((reviews.reduce((a, b) => a + b.rating, 0) / reviews.length).toFixed(1)) : 0;
 
       const prices = variants.map((v) => v.price);
       const minPrice = prices.length > 0 ? Math.min(...prices) : p.basePrice;
       const maxPrice = prices.length > 0 ? Math.max(...prices) : p.basePrice;
+      const defaultVariantId = variants.length > 0 ? variants[0].variantId : undefined;
 
       return {
         productId: p.productId,
+        defaultVariantId,
         name: p.name,
         brand: p.brand,
         description: p.description,
@@ -116,7 +118,7 @@ export class MemoryCatalogRepository implements ICatalogRepository {
         };
       });
 
-    const averageRating = reviews.length > 0 ? reviews.reduce((a, b) => a + b.rating, 0) / reviews.length : 5.0;
+    const averageRating = reviews.length > 0 ? reviews.reduce((a, b) => a + b.rating, 0) / reviews.length : 0;
 
     return {
       ...product,

@@ -45,7 +45,7 @@ VALUES
 (1, 1, 'PB-14X-SG-16-512', 'Space Gray', '14-inch', '16GB RAM / 512GB SSD', 899.00, 15, 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80', TRUE),
 (2, 1, 'PB-14X-SL-32-1TB', 'Silver', '14-inch', '32GB RAM / 1TB SSD', 1199.00, 8, 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&w=800&q=80', TRUE),
 (3, 2, 'AP-ANC-BLK', 'Matte Black', 'Over-Ear', '40mm Titanium Drivers', 199.00, 25, 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80', TRUE),
-(4, 2, 'AP-ANC-WHT', 'Ivory White', 'Over-Ear', '40mm Titanium Drivers', 199.00, 12, 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80', TRUE),
+(4, 2, 'AP-ANC-WHT', 'Ivory White', 'Over-Ear', '40mm Titanium Drivers', 199.00, 12, '/images/headphones-white.png', TRUE),
 (5, 3, 'GP-S26-BLK-128', 'Phantom Black', '6.7-inch AMOLED', '128GB UFS 4.0', 799.00, 20, 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80', TRUE),
 (6, 3, 'GP-S26-BLK-256', 'Phantom Black', '6.7-inch AMOLED', '256GB UFS 4.0', 899.00, 14, 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=800&q=80', TRUE)
 ON DUPLICATE KEY UPDATE sku = VALUES(sku);
