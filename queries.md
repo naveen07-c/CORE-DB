@@ -40,38 +40,38 @@ Check email uniqueness, insert user + create their 1:1 cart:
 
 ```sql
 -- auth.service: userRepository.findByEmail()
-SELECT * FROM users WHERE email = ? AND is_active = TRUE;
+SELECT * FROM users WHERE email = 'customer@test.com' AND is_active = TRUE;
 
 -- mysql/userRepository.create() — single transaction
 START TRANSACTION;
 
 INSERT INTO users (full_name, email, password, phone, is_active)
-VALUES (?, ?, ?, ?, TRUE);          -- password stored as bcrypt hash
+VALUES ('New User', 'new@example.com', '$2a$10$hashedpassword', '9876543210', TRUE);
 
-INSERT INTO cart (user_id) VALUES (?);   -- relational rule: every user gets a cart
+INSERT INTO cart (user_id) VALUES (LAST_INSERT_ID());   -- relational rule: every user gets a cart
 
 COMMIT;
 
 -- read back the created row
-SELECT * FROM users WHERE user_id = ? AND is_active = TRUE;
+SELECT * FROM users WHERE user_id = LAST_INSERT_ID() AND is_active = TRUE;
 ```
 
 ### Step 1.2 — Login (`POST /api/auth/login`)
 Fetch hash by email; bcrypt compare happens in Node:
 
 ```sql
-SELECT * FROM users WHERE email = ? AND is_active = TRUE;
+SELECT * FROM users WHERE email = 'customer@test.com' AND is_active = TRUE;
 ```
 
 ### Step 1.3 — View / Update / Delete Profile (`GET|PUT|DELETE /api/user/me`)
 
 ```sql
-SELECT * FROM users WHERE user_id = ? AND is_active = TRUE;
+SELECT * FROM users WHERE user_id = 2 AND is_active = TRUE;
 
-UPDATE users SET full_name = ?, phone = ? WHERE user_id = ?;   -- dynamic SET clause
+UPDATE users SET full_name = 'Jane Updated', phone = '9876500000' WHERE user_id = 2;
 
-SELECT COUNT(*) AS cnt FROM orders WHERE user_id = ?;          -- RESTRICT check first
-DELETE FROM users WHERE user_id = ?;                           -- ON DELETE CASCADE removes
+SELECT COUNT(*) AS cnt FROM orders WHERE user_id = 2;          -- RESTRICT check first
+DELETE FROM users WHERE user_id = 2;                           -- ON DELETE CASCADE removes
                                                                -- addresses, cart, reviews
 ```
 
@@ -105,18 +105,18 @@ FROM products p
 JOIN categories c ON c.category_id = p.category_id
 LEFT JOIN product_variants v ON v.product_id = p.product_id AND v.is_active = TRUE
 WHERE p.is_active = TRUE
-  -- optional filters appended as needed:
-  AND p.category_id = ?                                  -- ?category=1
-  AND LOWER(p.brand) = LOWER(?)                          -- ?brand=SoundMax
-  AND (p.name LIKE ? OR p.brand LIKE ? OR p.description LIKE ?
+  -- optional filters (real examples):
+  AND p.category_id = 1                                  -- category=1 (Laptops)
+  AND LOWER(p.brand) = LOWER('Iron & Ivy')               -- brand=Iron & Ivy
+  AND (p.name LIKE '%probook%' OR p.brand LIKE '%iron%' OR p.description LIKE '%ultrabook%'
        OR EXISTS (SELECT 1 FROM product_variants sv
-                  WHERE sv.product_id = p.product_id AND sv.sku LIKE ?))   -- ?search=headphones
+                  WHERE sv.product_id = p.product_id AND sv.sku LIKE '%PB-14X%'))   -- search=probook
   AND COALESCE((SELECT MIN(v.price) FROM product_variants v
                 WHERE v.product_id = p.product_id AND v.is_active = TRUE),
-               p.base_price) <= ?                        -- ?maxPrice=5000
+               p.base_price) <= 1500                     -- maxPrice=1500
 GROUP BY p.product_id, c.name
 ORDER BY min_price ASC;    -- price_asc | price_desc → DESC | rating → rating DESC | default: product_id ASC
-LIMIT 12 OFFSET 0;         -- pagination (?page=&limit=)
+LIMIT 12 OFFSET 0;         -- pagination (page=1, limit=12)
 ```
 
 Count query for `totalPages` runs with identical filters.
@@ -129,18 +129,18 @@ Three queries assembled into one response:
 SELECT p.*, c.category_id AS cat_id, c.name AS cat_name
 FROM products p
 LEFT JOIN categories c ON c.category_id = p.category_id
-WHERE p.is_active = TRUE AND p.product_id = ?;
+WHERE p.is_active = TRUE AND p.product_id = 1;
 
 -- all purchasable variants (SKU matrix)
 SELECT * FROM product_variants
-WHERE product_id = ? AND is_active = TRUE ORDER BY variant_id;
+WHERE product_id = 1 AND is_active = TRUE ORDER BY variant_id;
 
 -- reviews with reviewer names
 SELECT r.review_id, r.user_id, r.product_id, r.rating, r.review_text, r.review_date,
        u.full_name AS user_name
 FROM reviews r
 LEFT JOIN users u ON u.user_id = r.user_id
-WHERE r.product_id = ?
+WHERE r.product_id = 1
 ORDER BY r.review_date DESC;
 ```
 
@@ -152,8 +152,8 @@ ORDER BY r.review_date DESC;
 Cart row is auto-created if missing:
 
 ```sql
-SELECT * FROM cart WHERE user_id = ?;
-INSERT INTO cart (user_id) VALUES (?);      -- only if above returned nothing
+SELECT * FROM cart WHERE user_id = 2;
+INSERT INTO cart (user_id) VALUES (2);      -- only if above returned nothing
 
 -- detailed line items
 SELECT ci.cart_item_id, ci.variant_id, ci.quantity,
@@ -163,7 +163,7 @@ SELECT ci.cart_item_id, ci.variant_id, ci.quantity,
 FROM cart_items ci
 JOIN product_variants v ON v.variant_id = ci.variant_id
 LEFT JOIN products p ON p.product_id = v.product_id
-WHERE ci.cart_id = ?
+WHERE ci.cart_id = 2
 ORDER BY ci.cart_item_id;
 
 -- subtotal computed in app: SUM(unit_price × quantity)
@@ -173,15 +173,15 @@ ORDER BY ci.cart_item_id;
 Stock validated first, then merge-or-insert on `UNIQUE(cart_id, variant_id)`:
 
 ```sql
-SELECT stock_quantity, is_active FROM product_variants WHERE variant_id = ?;
+SELECT stock_quantity, is_active FROM product_variants WHERE variant_id = 1;
 
-SELECT cart_item_id, quantity FROM cart_items WHERE cart_id = ? AND variant_id = ?;
+SELECT cart_item_id, quantity FROM cart_items WHERE cart_id = 2 AND variant_id = 1;
 
 -- if item already in cart (quantity merged):
-UPDATE cart_items SET quantity = ? WHERE cart_item_id = ?;
+UPDATE cart_items SET quantity = 3 WHERE cart_item_id = 1;
 
 -- else new line:
-INSERT INTO cart_items (cart_id, variant_id, quantity) VALUES (?, ?, ?);
+INSERT INTO cart_items (cart_id, variant_id, quantity) VALUES (2, 1, 2);
 
 -- rejected when quantity > stock_quantity:
 --   CHECK chk_cart_items_quantity (quantity > 0), app throws stock error
@@ -192,23 +192,23 @@ INSERT INTO cart_items (cart_id, variant_id, quantity) VALUES (?, ?, ?);
 ```sql
 SELECT ci.cart_item_id, ci.variant_id
 FROM cart_items ci
-WHERE ci.cart_item_id = ? AND ci.cart_id = ?;
+WHERE ci.cart_item_id = 1 AND ci.cart_id = 2;
 
-SELECT stock_quantity FROM product_variants WHERE variant_id = ?;
+SELECT stock_quantity FROM product_variants WHERE variant_id = 1;
 
-UPDATE cart_items SET quantity = ? WHERE cart_item_id = ?;
+UPDATE cart_items SET quantity = 3 WHERE cart_item_id = 1;
 ```
 
 ### Step 3.4 — Remove Item (`DELETE /api/cart/items/:id`)
 
 ```sql
-DELETE FROM cart_items WHERE cart_item_id = ? AND cart_id = ?;
+DELETE FROM cart_items WHERE cart_item_id = 1 AND cart_id = 2;
 ```
 
 ### Step 3.5 — Clear Cart (`DELETE /api/cart`)
 
 ```sql
-DELETE FROM cart_items WHERE cart_id = ?;
+DELETE FROM cart_items WHERE cart_id = 2;
 ```
 
 ---
@@ -218,16 +218,16 @@ DELETE FROM cart_items WHERE cart_id = ?;
 ### Step 4.1 — List / Add / Delete Address (`GET|POST|DELETE /api/user/addresses`)
 
 ```sql
-SELECT * FROM addresses WHERE user_id = ? ORDER BY address_id;
+SELECT * FROM addresses WHERE user_id = 2 ORDER BY address_id;
 
-SELECT * FROM addresses WHERE address_id = ?;          -- ownership check at checkout
+SELECT * FROM addresses WHERE address_id = 1;          -- ownership check at checkout
 
 INSERT INTO addresses
 (user_id, full_name, phone, address_line1, address_line2, city, state, pincode, address_type)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);                    -- ENUM('HOME','OFFICE','OTHER')
+VALUES (2, 'Jane Customer', '9123456780', '123 New Street', 'Apt 4B', 'San Francisco', 'CA', '94102', 'HOME');
 
-SELECT COUNT(*) AS cnt FROM orders WHERE address_id = ?;  -- RESTRICT check
-DELETE FROM addresses WHERE address_id = ? AND user_id = ?;
+SELECT COUNT(*) AS cnt FROM orders WHERE address_id = 1;  -- RESTRICT check
+DELETE FROM addresses WHERE address_id = 1 AND user_id = 2;
 ```
 
 ---
@@ -241,36 +241,39 @@ All statements run inside ONE transaction with row-level locks
 START TRANSACTION;
 
 -- 1. Lock the user's cart row
-SELECT cart_id FROM cart WHERE user_id = ? FOR UPDATE;
+SELECT cart_id FROM cart WHERE user_id = 2 FOR UPDATE;
 
 -- 2. Read cart lines
-SELECT variant_id, quantity FROM cart_items WHERE cart_id = ? ORDER BY cart_item_id;
+SELECT variant_id, quantity FROM cart_items WHERE cart_id = 2 ORDER BY cart_item_id;
 
 -- 3. LOCK variant rows + validate stock atomically (prevents overselling/races)
 SELECT v.variant_id, v.sku, v.price, v.stock_quantity, v.product_id, p.name AS product_name
 FROM product_variants v
 JOIN products p ON p.product_id = v.product_id
-WHERE v.variant_id IN (?, ?, ...)
+WHERE v.variant_id IN (1, 4)
 FOR UPDATE;
 -- insufficient stock anywhere → ROLLBACK (nothing is written)
 
 -- 4. Create order header (price snapshot moment)
 INSERT INTO orders (user_id, address_id, order_status, total_amount)
-VALUES (?, ?, 'CONFIRMED', ?);
+VALUES (2, 1, 'CONFIRMED', 1297.00);
 
 -- 5. Snapshot immutable line items (product title + unit price frozen here)
 INSERT INTO order_items (order_id, variant_id, product_name, price, quantity, discount, total_price)
-VALUES (?, ?, ?, ?, ?, 0.00, ?);
+VALUES (LAST_INSERT_ID(), 1, 'ProBook 14X', 899.00, 1, 0.00, 899.00);
+INSERT INTO order_items (order_id, variant_id, product_name, price, quantity, discount, total_price)
+VALUES (LAST_INSERT_ID(), 4, 'AeroPulse ANC Headphones', 199.00, 2, 0.00, 398.00);
 
 -- 6. Deduct inventory
-UPDATE product_variants SET stock_quantity = stock_quantity - ? WHERE variant_id = ?;
+UPDATE product_variants SET stock_quantity = stock_quantity - 1 WHERE variant_id = 1;
+UPDATE product_variants SET stock_quantity = stock_quantity - 2 WHERE variant_id = 4;
 
 -- 7. Record payment (1:1 with order)
 INSERT INTO payments (order_id, payment_method, amount, payment_status, transaction_id)
-VALUES (?, ?, ?, 'SUCCESS', ?);       -- ENUM('UPI','CARD','COD','NET_BANKING')
+VALUES (LAST_INSERT_ID(), 'UPI', 1297.00, 'SUCCESS', 'TXN_12345_UPI');
 
 -- 8. Purge purchased lines from cart
-DELETE FROM cart_items WHERE cart_id = ?;
+DELETE FROM cart_items WHERE cart_id = 2;
 
 COMMIT;     -- any error before this point → ROLLBACK, DB unchanged
 ```
@@ -283,22 +286,22 @@ COMMIT;     -- any error before this point → ROLLBACK, DB unchanged
 Per order: items + payment + shipping address
 
 ```sql
-SELECT * FROM orders WHERE user_id = ? ORDER BY order_date DESC;
+SELECT * FROM orders WHERE user_id = 2 ORDER BY order_date DESC;
 
-SELECT * FROM order_items WHERE order_id = ? ORDER BY order_item_id;
-SELECT * FROM payments   WHERE order_id = ?;
-SELECT * FROM addresses  WHERE address_id = ?;
+SELECT * FROM order_items WHERE order_id = 1 ORDER BY order_item_id;
+SELECT * FROM payments   WHERE order_id = 1;
+SELECT * FROM addresses  WHERE address_id = 1;
 ```
 
 ### Step 6.2 — Single Order (`GET /api/orders/:orderId`)
 
 ```sql
-SELECT o.* FROM orders o WHERE o.order_id = ? AND o.user_id = ?;   -- scoped to owner
+SELECT o.* FROM orders o WHERE o.order_id = 1 AND o.user_id = 2;   -- scoped to owner
 
-SELECT * FROM order_items WHERE order_id = ? ORDER BY order_item_id;
-SELECT * FROM payments   WHERE order_id = ?;
-SELECT * FROM addresses  WHERE address_id = ?;
-SELECT user_id, full_name, email FROM users WHERE user_id = ?;     -- customer summary (admin view)
+SELECT * FROM order_items WHERE order_id = 1 ORDER BY order_item_id;
+SELECT * FROM payments   WHERE order_id = 1;
+SELECT * FROM addresses  WHERE address_id = 1;
+SELECT user_id, full_name, email FROM users WHERE user_id = 2;     -- customer summary (admin view)
 ```
 
 ---
@@ -309,7 +312,7 @@ SELECT user_id, full_name, email FROM users WHERE user_id = ?;     -- customer s
 
 ```sql
 INSERT INTO reviews (user_id, product_id, rating, review_text)
-VALUES (?, ?, ?, ?);
+VALUES (2, 2, 4, 'Great sound quality, comfortable for long sessions.');
 -- duplicate → UNIQUE uq_user_product_review fires ER_DUP_ENTRY
 -- rating outside 1-5 → CHECK chk_reviews_rating rejects
 ```
@@ -321,7 +324,7 @@ SELECT 1 AS purchased
 FROM order_items oi
 JOIN orders o ON o.order_id = oi.order_id
 JOIN product_variants v ON v.variant_id = oi.variant_id
-WHERE o.user_id = ? AND o.order_status <> 'CANCELLED' AND v.product_id = ?
+WHERE o.user_id = 2 AND o.order_status <> 'CANCELLED' AND v.product_id = 1
 LIMIT 1;
 ```
 
@@ -332,7 +335,7 @@ SELECT r.review_id, r.user_id, r.product_id, r.rating, r.review_text, r.review_d
        u.full_name AS user_name
 FROM reviews r
 LEFT JOIN users u ON u.user_id = r.user_id
-WHERE r.product_id = ?
+WHERE r.product_id = 1
 ORDER BY r.review_date DESC;
 ```
 
@@ -343,8 +346,8 @@ ORDER BY r.review_date DESC;
 ### Step 8.1 — Update Variant Price / Stock
 
 ```sql
-UPDATE product_variants SET price          = ? WHERE variant_id = ?;
-UPDATE product_variants SET stock_quantity = ? WHERE variant_id = ?;
+UPDATE product_variants SET price = 949.00 WHERE variant_id = 1;
+UPDATE product_variants SET stock_quantity = 12 WHERE variant_id = 1;
 -- CHECK constraints reject negatives: chk_variants_price, chk_variants_stock
 ```
 
@@ -415,6 +418,8 @@ UNION ALL SELECT 'reviews',          COUNT(*) FROM reviews;
 SELECT user_id, full_name, email, phone, role, is_active, created_at
 FROM users
 ORDER BY user_id;
+-- Returns: 1 | System Administrator | admin@ironandivy.com | 9876543210 | ADMIN | 1 | ...
+--          2 | Jane Customer        | customer@test.com   | 9123456780 | CUSTOMER | 1 | ...
 ```
 
 ### 10.2 — ADDRESSES with account owner (FK → users)
@@ -425,6 +430,7 @@ SELECT a.address_id, u.full_name AS account_holder, a.full_name AS recipient,
 FROM addresses a
 JOIN users u ON u.user_id = a.user_id
 ORDER BY a.user_id, a.address_id;
+-- Returns: 1 | Jane Customer | Jane Customer | 9123456780 | 404 Relational Drive... | San Francisco | CA | 94107 | HOME | 1
 ```
 
 ### 10.3 — CATEGORIES with product count
@@ -435,6 +441,9 @@ FROM categories c
 LEFT JOIN products p ON p.category_id = c.category_id
 GROUP BY c.category_id, c.name, c.slug
 ORDER BY c.category_id;
+-- Returns: 1 | Laptops & Computers | laptops-computers | 1
+--          2 | Smartphones & Tablets | smartphones-tablets | 1
+--          3 | Audio & Wearables | audio-wearables | 1
 ```
 
 ### 10.4 — PRODUCTS with category, variant count and price range
@@ -448,6 +457,9 @@ JOIN categories c ON c.category_id = p.category_id
 LEFT JOIN product_variants v ON v.product_id = p.product_id AND v.is_active = TRUE
 GROUP BY p.product_id, p.name, p.brand, c.name, p.base_price
 ORDER BY p.product_id;
+-- Returns: 1 | ProBook 14X | Iron & Ivy | Laptops & Computers | 899.00 | 2 | 899.00 | 1199.00
+--          2 | AeroPulse ANC Headphones | AeroAcoustics | Audio & Wearables | 199.00 | 2 | 199.00 | 199.00
+--          3 | Galaxy Pro S26 | NovaTech | Smartphones & Tablets | 799.00 | 2 | 799.00 | 899.00
 ```
 
 ### 10.5 — PRODUCT_VARIANTS — the buyable SKU matrix
@@ -458,6 +470,12 @@ SELECT v.variant_id, p.name AS product, v.sku, v.color, v.size, v.storage,
 FROM product_variants v
 JOIN products p ON p.product_id = v.product_id
 ORDER BY p.product_id, v.variant_id;
+-- Returns: 1 | ProBook 14X | PB-14X-SG-16-512 | Space Gray | 14-inch | 16GB RAM / 512GB SSD | 899.00 | 15
+--          2 | ProBook 14X | PB-14X-SL-32-1TB | Silver | 14-inch | 32GB RAM / 1TB SSD | 1199.00 | 8
+--          3 | AeroPulse ANC Headphones | AP-ANC-BLK | Matte Black | Over-Ear | 40mm Titanium Drivers | 199.00 | 25
+--          4 | AeroPulse ANC Headphones | AP-ANC-WHT | Ivory White | Over-Ear | 40mm Titanium Drivers | 199.00 | 12
+--          5 | Galaxy Pro S26 | GP-S26-BLK-128 | Phantom Black | 6.7-inch AMOLED | 128GB UFS 4.0 | 799.00 | 20
+--          6 | Galaxy Pro S26 | GP-S26-BLK-256 | Phantom Black | 6.7-inch AMOLED | 256GB UFS 4.0 | 899.00 | 14
 ```
 
 ### 10.6 — CART — one cart per user (1:1 view)
@@ -471,6 +489,8 @@ JOIN cart c ON c.user_id = u.user_id
 LEFT JOIN cart_items ci ON ci.cart_id = c.cart_id
 GROUP BY u.user_id, u.full_name, c.cart_id, c.created_at
 ORDER BY u.user_id;
+-- Returns: 1 | System Administrator | 1 | ... | 0 | 0
+--          2 | Jane Customer | 2 | ... | 0 | 0
 ```
 
 ### 10.7 — CART_ITEMS — full cart detail with live prices
@@ -484,6 +504,7 @@ JOIN users u           ON u.user_id = c.user_id
 JOIN product_variants v ON v.variant_id = ci.variant_id
 JOIN products p        ON p.product_id = v.product_id
 ORDER BY u.user_id, ci.cart_item_id;
+-- After adding items for demo: returns actual cart lines
 ```
 
 ### 10.8 — ORDERS with customer and shipping address
@@ -496,6 +517,7 @@ FROM orders o
 JOIN users u     ON u.user_id = o.user_id
 JOIN addresses a ON a.address_id = o.address_id
 ORDER BY o.order_date DESC;
+-- Returns populated rows after checkout demo
 ```
 
 ### 10.9 — ORDER_ITEMS — immutable invoice lines
@@ -506,6 +528,7 @@ SELECT o.order_id, oi.product_name, oi.variant_details,
 FROM order_items oi
 JOIN orders o ON o.order_id = oi.order_id
 ORDER BY o.order_id, oi.order_item_id;
+-- Returns snapshot rows from checkout
 ```
 
 ### 10.10 — PAYMENTS with order and customer
@@ -528,6 +551,7 @@ FROM reviews r
 JOIN users u    ON u.user_id = r.user_id
 JOIN products p ON p.product_id = r.product_id
 ORDER BY r.review_date DESC;
+-- Returns: 1 | Jane Customer | ProBook 14X | 5 | Phenomenal Development Workstation | ... | 1 | ...
 ```
 
 ---
@@ -799,6 +823,7 @@ ORDER BY cart_value DESC;
 
 ```sql
 SELECT DISTINCT brand FROM products ORDER BY brand;
+-- Returns: AeroAcoustics, Iron & Ivy, NovaTech
 ```
 
 ### 12.16 — Search with LIKE (pattern match)
@@ -806,7 +831,7 @@ SELECT DISTINCT brand FROM products ORDER BY brand;
 ```sql
 SELECT p.name, p.brand, p.base_price
 FROM products p
-WHERE p.name LIKE '%head%' OR p.brand LIKE '%sound%';
+WHERE p.name LIKE '%probook%' OR p.brand LIKE '%iron%';
 ```
 
 ### 12.17 — Pagination with LIMIT / OFFSET
@@ -846,7 +871,7 @@ VALUES ('Duplicate Test', 'customer@test.com', 'x', '0000000000');
 
 ```sql
 INSERT INTO product_variants (product_id, sku, price, stock_quantity)
-VALUES (1, 'IVY-TEE-BLK-M', 499.00, 10);
+VALUES (1, 'PB-14X-SG-16-512', 499.00, 10);
 -- ERROR 1062: Duplicate entry (sku already exists)
 ```
 
@@ -927,13 +952,13 @@ VALUES (1, 'No price product', 'X', 'desc', NULL);
 ### 14.1 — Atomicity proof: ROLLBACK restores the data
 
 ```sql
-SELECT stock_quantity FROM product_variants WHERE variant_id = 1;   -- note value, e.g. 25
+SELECT stock_quantity FROM product_variants WHERE variant_id = 1;   -- note value, e.g. 15
 
 START TRANSACTION;
 UPDATE product_variants SET stock_quantity = stock_quantity - 100 WHERE variant_id = 1;
-SELECT stock_quantity FROM product_variants WHERE variant_id = 1;   -- shows -75 (uncommitted)
+SELECT stock_quantity FROM product_variants WHERE variant_id = 1;   -- shows -85 (uncommitted)
 ROLLBACK;
-SELECT stock_quantity FROM product_variants WHERE variant_id = 1;   -- back to 25 — nothing stuck
+SELECT stock_quantity FROM product_variants WHERE variant_id = 1;   -- back to 15 — nothing stuck
 ```
 
 ### 14.2 — Isolation proof: row lock prevents overselling (TWO MySQL Workbench sessions)
